@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Voice Assistant for Farmers — Multilingual RAG Advisory System</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Malayalam:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans Malayalam', sans-serif;
+      background-color: #f4f7f4;
+      color: #1c2e24;
+    }
+    .ml-text {
+      font-family: 'Noto Sans Malayalam', 'Inter', sans-serif;
+      line-height: 1.75;
+    }
+    .pulse-ring {
+      animation: pulseRing 1.4s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+    @keyframes pulseRing {
+      0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6); }
+      70% { box-shadow: 0 0 0 14px rgba(220, 38, 38, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+    }
+    .step-active {
+      border-color: #15803d !important;
+      background-color: #dcfce7 !important;
+      transform: translateY(-2px);
+    }
+    .step-done {
+      border-color: #16a34a !important;
+      background-color: #f0fdf4 !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Status Notification -->
+  <div id="toastBanner" class="fixed bottom-5 right-5 z-50 hidden bg-emerald-900 text-white px-4 py-3 rounded-xl shadow-xl border border-emerald-600 text-sm font-medium flex items-center gap-2 transition-all">
+    <span id="toastText">Status updated</span>
+  </div>
+
+  <!-- Top Header -->
+  <header class="bg-gradient-to-r from-emerald-950 via-emerald-900 to-green-800 text-white shadow-md">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div class="flex items-start sm:items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-lg font-bold text-amber-300 shrink-0">
+          KA
+        </div>
+        <div>
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-lg sm:text-xl font-bold tracking-tight">AI Voice Assistant for Farmers</h1>
+            <span class="text-xs bg-amber-500 text-emerald-950 font-bold px-2.5 py-0.5 rounded-full">കേരള കർഷക സഹായി</span>
+          </div>
+          <p class="text-xs sm:text-sm text-emerald-200 mt-0.5">
+            Multilingual, RAG-Powered Farming Advisory &amp; Government Scheme Matcher for Kerala
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2 text-xs">
+        <div class="bg-emerald-950/60 border border-emerald-700/70 rounded-lg px-3 py-1.5 text-emerald-100">
+          <span class="font-semibold text-amber-300">Group:</span> Akash B L (TRV23CE010) • Gopika L V (TRV23CE039) • Karthika B Nair (TRV23CE042)
+        </div>
+        <button id="openApiModalBtn" type="button" class="bg-amber-500 hover:bg-amber-400 text-emerald-950 font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm">
+          <span id="apiStatusLabel">Engine: Local KAU Vector RAG</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="max-w-7xl mx-auto px-4 pt-1 flex overflow-x-auto gap-1 border-t border-emerald-800/80">
+      <button type="button" data-tab="assistant" class="nav-tab px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-amber-400 text-amber-300 whitespace-nowrap flex items-center gap-1.5">
+        <span>1. Voice &amp; Text Assistant</span>
+      </button>
+      <button type="button" data-tab="schemes" class="nav-tab px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-emerald-200 hover:text-white whitespace-nowrap flex items-center gap-1.5">
+        <span>2. Scheme Eligibility Matcher</span>
+      </button>
+      <button type="button" data-tab="kb" class="nav-tab px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-emerald-200 hover:text-white whitespace-nowrap flex items-center gap-1.5">
+        <span>3. KAU Vector Knowledge Base</span>
+      </button>
+      <button type="button" data-tab="guide" class="nav-tab px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-emerald-200 hover:text-white whitespace-nowrap flex items-center gap-1.5">
+        <span>4. Backend Code &amp; Architecture</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="max-w-7xl w-full mx-auto px-4 py-5 flex-1">
+
+    <!-- ================= TAB 1: VOICE & TEXT ASSISTANT ================= -->
+    <section id="tab-assistant" class="space-y-5">
+
+      <!-- 6-Step RAG System Pipeline -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100">
+        <div class="flex items-center justify-between mb-2.5">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-emerald-800">
+            RAG Execution Pipeline Status
+          </h2>
+          <span id="pipelineStatusBadge" class="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+            Idle — Waiting for Query
+          </span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2" id="pipelineStepsGrid">
+          <div id="step-card-1" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 transition-all">
+            <div class="text-xs font-bold text-emerald-900">1. Speak or Type</div>
+            <div class="text-[11px] text-slate-600 mt-0.5">Malayalam / English input</div>
+          </div>
+          <div id="step-card-2" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 transition-all">
+            <div class="text-xs font-bold text-emerald-900">2. Speech-to-Text</div>
+            <div class="text-[11px] text-slate-600 mt-0.5">Converts voice to text</div>
+          </div>
+          <div id="step-card-3" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 transition-all">
+            <div class="text-xs font-bold text-emerald-900">3. RAG Retrieval</div>
+            <div class="text-[11px] text-slate-600 mt-0.5">ChromaDB / TF-IDF search</div>
+          </div>
+          <div id="step-card-4" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 transition-all">
+            <div class="text-xs font-bold text-emerald-900">4. Grounded LLM</div>
+            <div class="text-[11px] text-slate-600 mt-0.5">Synthesizes verified facts</div>
+          </div>
+          <div id="step-card-5" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 transition-all">
+            <div class="text-xs font-bold text-emerald-900">5. Scheme Check</div>
+            <div class="text-[11px] text-slate-600 mt-0.5">Matches farmer profile</div>
+          </div>
+          <div id="step-card-6" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 transition-all">
+            <div class="text-xs font-bold text-emerald-900">6. Text-to-Speech</div>
+            <div class="text-[11px] text-slate-600 mt-0.5">Audio synthesis output</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        <!-- Left Column: Farmer Profile + Input Controls (5 cols) -->
+        <div class="lg:col-span-5 space-y-4">
+
+          <!-- Farmer Profile Card -->
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-emerald-950">
+                Farmer Profile Parameters (കർഷക പ്രൊഫൈൽ)
+              </h3>
+              <span class="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-medium">Scheme Filter</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <label for="profileDistrict" class="block font-semibold text-slate-700 mb-1">District (ജില്ല)</label>
+                <select id="profileDistrict" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+                  <option value="Kollam">Kollam (കൊല്ലം)</option>
+                  <option value="Thiruvananthapuram">Thiruvananthapuram (തിരുവനന്തപുരം)</option>
+                  <option value="Alappuzha (Kuttanad)">Alappuzha / Kuttanad (ആലപ്പുഴ)</option>
+                  <option value="Thrissur">Thrissur (തൃശ്ശൂർ)</option>
+                  <option value="Palakkad">Palakkad (പാലക്കാട്)</option>
+                  <option value="Wayanad">Wayanad (വയനാട്)</option>
+                  <option value="Idukki">Idukki (ഇടുക്കി)</option>
+                  <option value="Kottayam">Kottayam (കോട്ടയം)</option>
+                </select>
+              </div>
+              <div>
+                <label for="profileLand" class="block font-semibold text-slate-700 mb-1">
+                  Land Area: <span id="landValueDisplay" class="text-emerald-700 font-bold">0.8 Ha (2.0 Acres)</span>
+                </label>
+                <input id="profileLand" type="range" min="0.1" max="6.0" step="0.1" value="0.8" class="w-full accent-emerald-700 mt-1" />
+              </div>
+            </div>
+
+            <div class="text-xs">
+              <span class="block font-semibold text-slate-700 mb-1.5">Cultivated Crops (കൃഷി ചെയ്യുന്ന വിളകൾ)</span>
+              <div class="flex flex-wrap gap-2" id="cropCheckboxes">
+                <label class="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg cursor-pointer">
+                  <input type="checkbox" value="Paddy" class="crop-cb accent-emerald-700" checked />
+                  <span>Paddy (നെല്ല്)</span>
+                </label>
+                <label class="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg cursor-pointer">
+                  <input type="checkbox" value="Coconut" class="crop-cb accent-emerald-700" checked />
+                  <span>Coconut (തെങ്ങ്)</span>
+                </label>
+                <label class="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg cursor-pointer">
+                  <input type="checkbox" value="Black Pepper" class="crop-cb accent-emerald-700" checked />
+                  <span>Pepper (കുരുമുളക്)</span>
+                </label>
+                <label class="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg cursor-pointer">
+                  <input type="checkbox" value="Vegetables" class="crop-cb accent-emerald-700" />
+                  <span>Vegetables (പച്ചക്കറി)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
+              <label class="inline-flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
+                <input id="profileOwner" type="checkbox" class="accent-emerald-700" checked />
+                <span>Land Owner Cultivator (സ്വന്തം ഭൂമി / പട്ടയം)</span>
+              </label>
+              <span id="matchedCountMini" class="text-emerald-800 font-bold">5 Schemes Matched</span>
+            </div>
+          </div>
+
+          <!-- Voice & Text Query Box -->
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 space-y-3.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h3 class="text-sm font-bold text-emerald-950">
+                Query Input (ചോദ്യം ചോദിക്കുക)
+              </h3>
+              <div class="flex items-center gap-1.5 text-xs">
+                <label for="voiceLangSelect" class="text-slate-600 font-medium">Language:</label>
+                <select id="voiceLangSelect" class="rounded-lg border border-slate-300 px-2 py-1 bg-slate-50 text-slate-800 font-medium">
+                  <option value="bilingual">Bilingual (മലയാളം + English)</option>
+                  <option value="ml-IN">മലയാളം (Malayalam First)</option>
+                  <option value="en-IN">English (English First)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Microphone Button + Status -->
+            <div class="flex items-center gap-3 bg-gradient-to-r from-emerald-50 to-amber-50/60 p-3 rounded-xl border border-emerald-200">
+              <button id="micRecordBtn" type="button" class="w-12 h-12 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white flex items-center justify-center text-sm font-bold shadow transition shrink-0">
+                MIC
+              </button>
+              <div class="flex-1 min-w-0">
+                <div id="micStatusTitle" class="text-xs font-bold text-emerald-950">Voice Input (ml-IN / en-IN)</div>
+                <div id="micStatusSub" class="text-[11px] text-slate-600 truncate">Click MIC to record speech or select a test query below</div>
+              </div>
+              <button id="autoSpeakToggleBtn" type="button" class="text-xs px-2.5 py-1.5 rounded-lg border border-emerald-300 bg-white text-emerald-900 font-medium hover:bg-emerald-50 shrink-0">
+                Auto-TTS: ON
+              </button>
+            </div>
+
+            <!-- Textarea Input -->
+            <div>
+              <label for="farmerQueryInput" class="sr-only">Your Farming Question</label>
+              <textarea id="farmerQueryInput" rows="3" class="w-full rounded-xl border border-slate-300 p-3 text-sm ml-text focus:outline-none focus:ring-2 focus:ring-emerald-600" placeholder="Enter question in Malayalam or English..."></textarea>
+            </div>
+
+            <div class="flex gap-2">
+              <button id="askAdvisoryBtn" type="button" class="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-2.5 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2 text-sm">
+                <span>Get Grounded Advisory &amp; Check Schemes</span>
+              </button>
+              <button id="clearQueryBtn" type="button" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 px-3 rounded-xl text-xs transition">
+                Clear
+              </button>
+            </div>
+
+            <!-- Sample Test Queries -->
+            <div class="pt-2 border-t border-slate-100">
+              <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                Sample Test Queries (Malayalam &amp; English):
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                <button type="button" data-sample="നെല്ലിലെ മുഞ്ഞ (Brown Planthopper), തണ്ടുതുരപ്പൻ എന്നിവ എങ്ങനെ നിയന്ത്രിക്കാം? ഏത് വിത്താണ് നല്ലത്?" class="sample-q-btn text-left text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-200 px-2.5 py-1.5 rounded-lg transition ml-text">
+                  നെല്ലിലെ മുഞ്ഞ / തണ്ടുതുരപ്പൻ നിയന്ത്രണം
+                </button>
+                <button type="button" data-sample="തെങ്ങിലെ ചെമ്പൻ ചെല്ലി, കൊമ്പൻ ചെല്ലി എന്നിവയെ എങ്ങനെ നിയന്ത്രിക്കാം?" class="sample-q-btn text-left text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-200 px-2.5 py-1.5 rounded-lg transition ml-text">
+                  തെങ്ങിലെ ചെമ്പൻ ചെല്ലി &amp; കൊമ്പൻ ചെല്ലി
+                </button>
+                <button type="button" data-sample="കുരുമുളകിലെ ദ്രുതവാട്ടം (Quick Wilt) തടയാൻ ട്രൈക്കോഡെർമയും ബോർഡോ മിശ്രിതവും എങ്ങനെ ഉപയോഗിക്കണം?" class="sample-q-btn text-left text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-200 px-2.5 py-1.5 rounded-lg transition ml-text">
+                  കുരുമുളകിലെ ദ്രുതവാട്ടം (Quick Wilt)
+                </button>
+                <button type="button" data-sample="My coconut palm central spindle leaf is yellowing and rotting during monsoon (Bud Rot). What is the KAU recommendation?" class="sample-q-btn text-left text-xs bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 px-2.5 py-1.5 rounded-lg transition">
+                  Coconut Bud Rot &amp; Fertilizer Schedule
+                </button>
+                <button type="button" data-sample="Which paddy varieties and fertilizer doses are recommended for Virippu, Mundakan, and Puncha seasons in Kerala?" class="sample-q-btn text-left text-xs bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 px-2.5 py-1.5 rounded-lg transition">
+                  Kerala Paddy Seasons &amp; Varieties
+                </button>
+                <button type="button" data-sample="How to prevent Quick Wilt (Foot Rot) and Pollu Beetle in Black Pepper vines?" class="sample-q-btn text-left text-xs bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 px-2.5 py-1.5 rounded-lg transition">
+                  Black Pepper Quick Wilt &amp; Pollu Beetle
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Grounded Answer + TTS + RAG Retrieval Details + Scheme Match (7 cols) -->
+        <div class="lg:col-span-7 space-y-4">
+
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-emerald-100 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div>
+                <span id="advisoryCropBadge" class="text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-full">
+                  KAU Grounded RAG Output
+                </span>
+                <h3 id="advisoryTitle" class="text-base sm:text-lg font-bold text-emerald-950 mt-1 ml-text">
+                  കേരള കാർഷിക സർവകലാശാല (KAU) ശുപാർശയും സർക്കാർ പദ്ധതികളും
+                </h3>
+              </div>
+
+              <!-- Text-to-Speech Controls -->
+              <div class="flex flex-wrap items-center gap-1.5">
+                <button id="speakMalayalamBtn" type="button" class="text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-3 py-1.5 rounded-lg transition">
+                  Speak ML (മലയാളം)
+                </button>
+                <button id="speakEnglishBtn" type="button" class="text-xs bg-amber-500 hover:bg-amber-400 text-emerald-950 font-semibold px-3 py-1.5 rounded-lg transition">
+                  Speak EN
+                </button>
+                <button id="stopSpeechBtn" type="button" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-800 font-medium px-2.5 py-1.5 rounded-lg transition">
+                  Stop
+                </button>
+                <button id="copyAdvisoryBtn" type="button" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-2.5 py-1.5 rounded-lg transition">
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            <!-- Bilingual Grounded Advisory Content -->
+            <div id="advisoryContentArea" class="space-y-4 text-sm leading-relaxed">
+            </div>
+
+            <!-- Government Scheme Recommendations -->
+            <div class="bg-amber-50/70 rounded-xl p-4 border border-amber-200/80 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs sm:text-sm font-bold text-amber-950">
+                  Eligible Government Schemes for Farmer Profile
+                </h4>
+                <button id="jumpToSchemesBtn" type="button" class="text-xs text-emerald-800 font-semibold underline hover:text-emerald-600">
+                  Full Eligibility Matrix →
+                </button>
+              </div>
+              <div id="inlineMatchedSchemes" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
+              </div>
+            </div>
+
+            <!-- Retrieved Vector Chunks -->
+            <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700">
+                  Retrieved Vector Knowledge Base Chunks (Top-K Cosine Similarity)
+                </span>
+                <span class="text-[11px] text-slate-500">ChromaDB / TF-IDF Index</span>
+              </div>
+              <div id="retrievedChunksList" class="space-y-2 text-xs">
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 2: SCHEME ELIGIBILITY MATCHER ================= -->
+    <section id="tab-schemes" class="hidden space-y-5">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-emerald-100">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-4 border-b border-slate-100">
+          <div>
+            <h2 class="text-lg font-bold text-emerald-950">Government Scheme Eligibility Matcher</h2>
+            <p class="text-xs sm:text-sm text-slate-600">
+              Rule-based eligibility evaluation over Kerala Department of Agriculture and Central Government schemes.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="schemeTabSummaryBadge" class="text-xs font-bold bg-emerald-100 text-emerald-900 px-3 py-1.5 rounded-xl">
+              Evaluating...
+            </span>
+          </div>
+        </div>
+
+        <div id="schemesFullGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: KAU VECTOR KNOWLEDGE BASE ================= -->
+    <section id="tab-kb" class="hidden space-y-5">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div class="lg:col-span-8 bg-white rounded-2xl p-5 shadow-sm border border-emerald-100 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-100">
+            <div>
+              <h2 class="text-lg font-bold text-emerald-950">Kerala Agricultural University (KAU) Vector Knowledge Base</h2>
+              <p class="text-xs text-slate-600">Indexed bilingual document chunks from KAU Package of Practices (Paddy, Coconut, Black Pepper).</p>
+            </div>
+            <input id="kbSearchInput" type="text" placeholder="Filter chunks by keyword..." class="text-xs rounded-xl border border-slate-300 px-3 py-2 w-full sm:w-60 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+          </div>
+          <div id="kbChunksContainer" class="space-y-3">
+          </div>
+        </div>
+
+        <!-- Add Custom Document Chunk to Vector Store -->
+        <div class="lg:col-span-4 bg-white rounded-2xl p-5 shadow-sm border border-emerald-100 space-y-3 h-fit">
+          <h3 class="text-sm font-bold text-emerald-950">
+            Ingest New Document Chunk
+          </h3>
+          <p class="text-xs text-slate-600">
+            Add a new bilingual document record to the in-memory vector index for immediate retrieval.
+          </p>
+          <div class="space-y-2.5 text-xs">
+            <div>
+              <label for="newChunkCrop" class="block font-semibold text-slate-700 mb-1">Crop Name</label>
+              <input id="newChunkCrop" type="text" value="Banana (വാഴ)" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5" />
+            </div>
+            <div>
+              <label for="newChunkTitleEn" class="block font-semibold text-slate-700 mb-1">Advisory Title (English)</label>
+              <input id="newChunkTitleEn" type="text" placeholder="e.g. Nendran Banana Pseudostem Weevil Control" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5" />
+            </div>
+            <div>
+              <label for="newChunkTitleMl" class="block font-semibold text-slate-700 mb-1">Advisory Title (Malayalam)</label>
+              <input id="newChunkTitleMl" type="text" placeholder="ഉദാ: വാഴയിലെ പിണ്ടിപ്പുഴു നിയന്ത്രണം" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 ml-text" />
+            </div>
+            <div>
+              <label for="newChunkKeywords" class="block font-semibold text-slate-700 mb-1">Index Keywords (comma-separated)</label>
+              <input id="newChunkKeywords" type="text" placeholder="banana, nendran, weevil, വാഴ, നേന്ത്രൻ, പിണ്ടിപ്പുഴു" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5" />
+            </div>
+            <div>
+              <label for="newChunkContentEn" class="block font-semibold text-slate-700 mb-1">Advisory Text (English)</label>
+              <textarea id="newChunkContentEn" rows="3" placeholder="Enter KAU recommendation in English..." class="w-full rounded-lg border border-slate-300 p-2"></textarea>
+            </div>
+            <div>
+              <label for="newChunkContentMl" class="block font-semibold text-slate-700 mb-1">Advisory Text (Malayalam)</label>
+              <textarea id="newChunkContentMl" rows="3" placeholder="മലയാളത്തിലുള്ള കൃഷി ശുപാർശ..." class="w-full rounded-lg border border-slate-300 p-2 ml-text"></textarea>
+            </div>
+            <button id="addChunkBtn" type="button" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-2 rounded-xl shadow-sm transition">
+              Embed &amp; Save to Vector Store
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 4: BACKEND CODE & ARCHITECTURE INSPECTOR ================= -->
+    <section id="tab-guide" class="hidden space-y-5">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-emerald-100 space-y-5">
+        <div class="border-b border-slate-100 pb-3">
+          <h2 class="text-lg font-bold text-emerald-950">System Architecture &amp; Python Backend Modules</h2>
+          <p class="text-xs sm:text-sm text-slate-600 mt-0.5">
+            Module implementation for ChromaDB vector indexing, TF-IDF cosine similarity retrieval, scheme eligibility filtering, and Streamlit UI.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <div class="font-bold text-emerald-950">1. Speech &amp; Language Pipeline</div>
+            <p class="text-slate-600">Supports <code class="bg-white px-1 rounded border">ml-IN</code> (Malayalam) and <code class="bg-white px-1 rounded border">en-IN</code> (English) via Web Speech API and Python <code class="bg-white px-1 rounded border">SpeechRecognition</code> + <code class="bg-white px-1 rounded border">gTTS</code>.</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <div class="font-bold text-emerald-950">2. Vector Store &amp; RAG Engine</div>
+            <p class="text-slate-600">Indexes official KAU Package of Practices chunks in <code class="bg-white px-1 rounded border">ChromaDB</code> with <code class="bg-white px-1 rounded border">TfidfVectorizer</code> ngram (1,2) cosine similarity scoring.</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <div class="font-bold text-emerald-950">3. Scheme Eligibility Engine</div>
+            <p class="text-slate-600">Evaluates farmer landholding (Ha), crop selection, and ownership status against 5 state and central agricultural schemes.</p>
+          </div>
+        </div>
+
+        <!-- Code File Switcher -->
+        <div class="space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex flex-wrap gap-1.5">
+              <button type="button" data-codefile="app.py" class="code-tab-btn text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-800 text-white">
+                app.py (Streamlit Frontend)
+              </button>
+              <button type="button" data-codefile="rag_engine.py" class="code-tab-btn text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200">
+                rag_engine.py (ChromaDB + RAG Engine)
+              </button>
+              <button type="button" data-codefile="requirements.txt" class="code-tab-btn text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200">
+                requirements.txt
+              </button>
+            </div>
+            <button id="copyCodeBtn" type="button" class="text-xs bg-slate-800 hover:bg-slate-700 text-white font-semibold px-3 py-1.5 rounded-lg">
+              Copy Module Code
+            </button>
+          </div>
+          <pre id="codeDisplayBlock" class="bg-slate-900 text-emerald-300 p-4 rounded-xl text-xs overflow-x-auto max-h-96 leading-relaxed font-mono"></pre>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- LLM Endpoint Configuration Modal -->
+  <div id="apiModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-emerald-100 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-sm font-bold text-emerald-950">RAG Generation Engine Settings</h3>
+        <button id="closeApiModalBtn" type="button" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
+      </div>
+      <p class="text-xs text-slate-600 leading-relaxed">
+        By default, the system runs using the local <strong>KAU Vector RAG Synthesizer</strong> (zero external API required). To connect an external OpenAI-compatible LLM API endpoint, enter your API key below:
+      </p>
+      <div class="space-y-2 text-xs">
+        <label for="llmApiKeyInput" class="block font-semibold text-slate-700">External LLM API Key (Optional)</label>
+        <input id="llmApiKeyInput" type="password" placeholder="sk-... (Leave empty for local KAU RAG engine)" class="w-full rounded-xl border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="clearApiKeyBtn" type="button" class="text-xs px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium">
+          Use Local KAU RAG
+        </button>
+        <button id="saveApiKeyBtn" type="button" class="text-xs px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">
+          Save Configuration
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const INITIAL_KB = {"crop_advisories": [{"id": "KAU-PADDY-01", "crop": "Paddy (നെല്ല്)", "category": "Seasons, Varieties & Fertilizer", "title_en": "Kerala Paddy Seasons (Virippu, Mundakan, Puncha), Uma Variety & Fertilizer Dose", "title_ml": "കേരളത്തിലെ നെൽകൃഷി സീസണുകൾ (വിരിപ്പ്, മുണ്ടകൻ, പുഞ്ച), ഉമ വിത്തിനവും വളപ്രയോഗവും", "keywords": ["paddy", "rice", "season", "variety", "uma", "jyothi", "virippu", "mundakan", "puncha", "fertilizer", "urea", "potash", "നെല്ല്", "വിത്ത്", "വിരിപ്പ്", "മുണ്ടകൻ", "പുഞ്ച", "ഉമ", "ജ്യോതി", "വളം", "യൂറിയ", "പൊട്ടാഷ്"], "content_en": "According to the Kerala Agricultural University (KAU) Package of Practices, paddy in Kerala is cultivated in three seasons: Virippu (Autumn: April–May to Sept–Oct), Mundakan (Winter: Sept–Oct to Dec–Jan), and Puncha (Summer: Dec–Jan to March–April). Leading high-yielding KAU varieties include Uma (MO 16, 115–120 days, red kernel, tolerant to brown planthopper and gall midge, high yielding across Kuttanad and all districts) and Jyothi (PTB 39, short duration 110–115 days). KAU fertilizer recommendation for medium-duration paddy is 90:45:45 kg/ha of N:P2O5:K2O along with 5 tonnes/ha organic manure and 350–500 kg/ha lime applied during basal land preparation.", "content_ml": "കേരള കാർഷിക സർവകലാശാലയുടെ (KAU) മാർഗ്ഗരേഖ പ്രകാരം കേരളത്തിൽ മൂന്ന് നെൽകൃഷി സീസണുകളാണുള്ളത്: വിരിപ്പ് (ഏപ്രിൽ–മെയ് മുതൽ സെപ്റ്റംബർ–ഒക്ടോബർ വരെ), മുണ്ടകൻ (സെപ്റ്റംബർ–ഒക്ടോബർ മുതൽ ഡിസംബർ–ജനുവരി വരെ), പുഞ്ച (ഡിസംബർ–ജനുവരി മുതൽ മാർച്ച്–ഏപ്രിൽ വരെ). പ്രധാന വിത്തിനങ്ങൾ: ഉമ (MO 16 - 115–120 ദിവസം മൂപ്പ്, മുഞ്ഞയെയും കുഴൽപ്പുഴുവിനെയും പ്രതിരോധിക്കാൻ ശേഷിയുള്ള ചുവന്ന അരി), ജ്യോതി (PTB 39). വളപ്രയോഗം: ഹെക്ടറിന് 5 ടൺ ജൈവവളവും 90:45:45 കിലോ N:P:K രാസവളങ്ങളും നൽകുക. അമ്ലത കുറയ്ക്കാൻ നിലമൊരുക്കുമ്പോൾ ഹെക്ടറിന് 350–500 കിലോ കുമ്മായം ചേർക്കുക.", "source_name": "KAU Package of Practices Recommendations: Crops (Cereals & Millets)", "source_url": "https://pop.kau.in/cereals&millets.htm"}, {"id": "KAU-PADDY-02", "crop": "Paddy (നെല്ല്)", "category": "Pest & Disease Management", "title_en": "Paddy Brown Planthopper (BPH / Munja), Stem Borer & Blast Control", "title_ml": "നെല്ലിലെ മുഞ്ഞ (BPH), തണ്ടുതുരപ്പൻ, ബ്ലാസ്റ്റ് രോഗം എന്നിവയുടെ നിയന്ത്രണം", "keywords": ["brown planthopper", "bph", "munja", "hopper burn", "stem borer", "dead heart", "white earhead", "blast", "yellowing", "paddy pest", "മുഞ്ഞ", "തണ്ടുതുരപ്പൻ", "ബ്ലാസ്റ്റ്", "നെല്ല് രോഗം", "മഞ്ഞളിപ്പ്", "കരിഞ്ഞുണങ്ങൽ"], "content_en": "KAU Package of Practices: (1) Brown Planthopper (Munja): causes circular drying 'hopper burn' at the plant base. Control: Plant resistant varieties like Uma (MO 16), avoid excess nitrogen/urea, drain field water for 3–4 days to reduce humidity at the base, and encourage natural predators (mirid bugs and spiders). (2) Stem Borer: causes 'dead heart' in tillers and 'white earheads' at maturity. Control: Clip seedling tips before transplanting to destroy egg masses, install pheromone traps, and release Trichogramma japonicum parasitoids. (3) Rice Blast: spindle-shaped leaf spots. Control: Seed treatment with Pseudomonas fluorescens (10g/kg seed) and 2% foliar spray.", "content_ml": "കേരള കാർഷിക സർവകലാശാല ശുപാർശ: (1) മുഞ്ഞ (Brown Planthopper): നെൽച്ചെടിയുടെ ചുവട്ടിലിരുന്ന് നീരൂറ്റിക്കുടിക്കുകയും വട്ടത്തിൽ കരിഞ്ഞുണങ്ങുന്നതിന് (Hopper burn) കാരണമാവുകയും ചെയ്യുന്നു. നിയന്ത്രണം: ഉമ പോലുള്ള പ്രതിരോധ വിത്തിനങ്ങൾ ഉപയോഗിക്കുക, അമിതമായ യൂറിയ ഒഴിവാക്കുക, പാടത്തുനിന്ന് 3–4 ദിവസത്തേക്ക് വെള്ളം വാർത്തു കളയുക. (2) തണ്ടുതുരപ്പൻ: നടുമ്പോൾ ഞാറിന്റെ അഗ്രം നുള്ളിക്കളഞ്ഞ് മുട്ടക്കൂട്ടങ്ങൾ നശിപ്പിക്കുക, ഫിറമോൺ കെണികൾ സ്ഥാപിക്കുക, ട്രൈക്കോഗ്രാമ മിത്രപ്രാണികളെ വിടുക. (3) ബ്ലാസ്റ്റ് രോഗം: ഇലകളിൽ കണ്ണിന്റെ ആകൃതിയിലുള്ള പുള്ളികൾ. സ്യൂഡോമോണസ് ഫ്ലൂറസെൻസ് (20 ഗ്രാം ഒരു ലിറ്റർ വെള്ളത്തിൽ) വിത്തിൽ പുരട്ടുകയോ തളിക്കുകയോ ചെയ്യുക.", "source_name": "KAU Package of Practices (Crops) PDF", "source_url": "https://kau.in/sites/default/files/documents/pop2016.pdf"}, {"id": "KAU-COCONUT-01", "crop": "Coconut (തെങ്ങ്)", "category": "Pest Management", "title_en": "Coconut Red Palm Weevil & Rhinoceros Beetle Management", "title_ml": "തെങ്ങിലെ ചെമ്പൻ ചെല്ലി, കൊമ്പൻ ചെല്ലി നിയന്ത്രണ മാർഗ്ഗങ്ങൾ", "keywords": ["coconut", "red palm weevil", "rhinoceros beetle", "beetle", "weevil", "holes", "fronds", "crown", "komban", "chemban", "തെങ്ങ്", "ചെമ്പൻ ചെല്ലി", "കൊമ്പൻ ചെല്ലി", "ചെല്ലി", "കൂമ്പ്", "ഓല"], "content_en": "KAU Package of Practices for Coconut: (1) Rhinoceros Beetle (Komban Chelli): bores into the central crown, causing characteristic geometric 'V'-shaped cuts on opened leaves. Management: Extract beetles using a beetle hook, fill top 2–3 leaf axils with a 1:1 mixture of fine sand and neem cake or marotti cake (250g each) before and after monsoons, and apply Metarhizium anisopliae bio-fungus to manure pits. (2) Red Palm Weevil (Chemban Chelli): grubs tunnel into the trunk causing yellowing of inner leaves, trunk holes, and brown oozing fluid. Management: Maintain crown hygiene, avoid cutting green leaves close to the trunk (leave 1.2 meters petiole), and set up aggregation pheromone traps @ 1 trap per hectare.", "content_ml": "കേരള കാർഷിക സർവകലാശാല മാർഗ്ഗരേഖ: (1) കൊമ്പൻ ചെല്ലി: തെങ്ങിന്റെ കൂമ്പ് തുരന്ന് ഓലകൾ വിരിയുമ്പോൾ 'V' ആകൃതിയിൽ മുറിഞ്ഞിരിക്കുന്നു. നിയന്ത്രണം: ചെല്ലിക്കോൽ ഉപയോഗിച്ച് ചെല്ലിയെ കുത്തിയെടുക്കുക, മഴയ്ക്ക് മുമ്പും ശേഷവും മുകളിലത്തെ 2–3 ഓലക്കവിളുകളിൽ വേപ്പിൻ പിണ്ണാക്കും മണലും സമം ചേർത്ത് (250 ഗ്രാം വീതം) നിറയ്ക്കുക, വളക്കുഴികളിൽ മെറ്റാറൈസിയം മിത്രകുമിൾ ചേർക്കുക. (2) ചെമ്പൻ ചെല്ലി: തടി തുരന്ന് ഉള്ളിലിരുന്ന് തിന്ന് നശിപ്പിക്കുന്നു. പച്ചമടലുകൾ തടിയോട് ചേർത്ത് വെട്ടരുത് (1.2 മീറ്റർ അകലം വിട്ട് മുറിക്കുക), ഹെക്ടറിന് ഒരു ഫിറമോൺ കെണി വെക്കുക.", "source_name": "KAU Package of Practices: Oil Seeds (Coconut)", "source_url": "https://pop.kau.in/oilseeds.htm"}, {"id": "KAU-COCONUT-02", "crop": "Coconut (തെങ്ങ്)", "category": "Disease & Fertilizer Schedule", "title_en": "Coconut Bud Rot (Mahali), Root Wilt & Annual Fertilizer Schedule", "title_ml": "തെങ്ങിലെ കൂമ്പുചീയൽ (മഹാളി), കാറ്റുവീഴ്ച രോഗവും വളപ്രയോഗവും", "keywords": ["bud rot", "mahali", "root wilt", "yellowing", "bordeaux", "fertilizer", "manure", "coconut disease", "കൂമ്പുചീയൽ", "മഹാളി", "കാറ്റുവീഴ്ച", "തെങ്ങ് വളം", "ബോർഡോ", "മഞ്ഞളിപ്പ്"], "content_en": "Per KAU Package of Practices: (1) Bud Rot (Phytophthora palmivora): causes rotting and foul smell in the central spindle leaf during monsoon. Management: Cut and clean infected tissue completely, apply 10% Bordeaux paste on the crown and cover with a pot/plastic hood to shield from rain. Prophylactically spray 1% Bordeaux mixture on surrounding crowns before the monsoon. (2) Fertilizer Schedule: For one adult bearing palm, apply 25–50 kg compost/organic manure with onset of monsoon (May–June), plus N:P:K at 500g : 320g : 1200g (e.g. 1.1 kg urea, 1.6 kg rock phosphate, 2 kg muriate of potash) per tree per year in two split doses (1/3 in May–June and 2/3 in Sept–Oct) along with 1 kg lime/dolomite.", "content_ml": "KAU ശുപാർശ: (1) കൂമ്പുചീയൽ (മഹാളി): മഴക്കാലത്ത് നടുവിലെ കൂമ്പോല മഞ്ഞളിച്ച് ചീഞ്ഞ് ദുർഗന്ധം വമിക്കുന്നു. നിയന്ത്രണം: ചീഞ്ഞ ഭാഗങ്ങൾ വെട്ടിമാറ്റി 10% ബോർഡോ കുഴമ്പ് തേച്ച് മഴ നനയാതെ മൂടിവെക്കുക. മഴയ്ക്ക് മുമ്പ് 1% ബോർഡോ മിശ്രിതം മണ്ടയിൽ തളിക്കുക. (2) വളപ്രയോഗം: കായ്ക്കുന്ന ഒരു തെങ്ങിന് വർഷത്തിൽ 25–50 കിലോ ജൈവവളവും 1.1 കിലോ യൂറിയ, 1.6 കിലോ രാജ്ഫോസ്, 2 കിലോ പൊട്ടാഷ് (NPK 500:320:1200 ഗ്രാം) എന്നിവ രണ്ടു തവണയായി (മെയ്–ജൂൺ, സെപ്റ്റംബർ–ഒക്ടോബർ) നൽകുക. ഒപ്പം ഒരു കിലോ കുമ്മായവും ചേർക്കുക.", "source_name": "KAU Package of Practices: Oil Seeds (Coconut)", "source_url": "https://pop.kau.in/oilseeds.htm"}, {"id": "KAU-PEPPER-01", "crop": "Black Pepper (കുരുമുളക്)", "category": "Disease & Pest Management", "title_en": "Black Pepper Quick Wilt (Foot Rot / Phytophthora) & Pollu Beetle Control", "title_ml": "കുരുമുളകിലെ ദ്രുതവാട്ടം (Quick Wilt / Foot Rot), പൊള്ളുവണ്ട് നിയന്ത്രണം", "keywords": ["pepper", "black pepper", "quick wilt", "foot rot", "phytophthora", "trichoderma", "bordeaux", "pollu", "vines", "yellow leaves", "കുരുമുളക്", "ദ്രുതവാട്ടം", "വാട്ടം", "ട്രൈക്കോഡെർമ", "ബോർഡോ", "പൊള്ളുവണ്ട്", "കുരുമുളക് രോഗം"], "content_en": "KAU Package of Practices: Quick Wilt (Phytophthora capsici) is the most destructive monsoon disease of black pepper. Symptoms include black water-soaked lesions on leaves, collar rot at the base, and sudden wilting. Management: Ensure good field drainage and prune support tree branches before monsoon for sunlight. Apply Trichoderma viride-enriched farmyard manure and neem cake (5 kg FYM + 1 kg neem cake per vine) at vine bases in May–June. Spray 1% Bordeaux mixture on leaves and drench the collar region with Bordeaux mixture or copper oxychloride (0.2%) before monsoon (May–June) and again in Aug–Sept. For Pollu Beetle that hollows out berries, spray 2% neem oil-garlic emulsion during spike emergence.", "content_ml": "KAU ശുപാർശ: കാലവർഷത്തിൽ കുരുമുളകിനെ നശിപ്പിക്കുന്ന പ്രധാന കുമിൾ രോഗമാണ് ദ്രുതവാട്ടം (Quick Wilt / Phytophthora). ഇലകളിൽ കറുത്ത പാടുകൾ വരികയും ചുവട് അഴുകി പെട്ടെന്ന് വാടുകയും ചെയ്യുന്നു. നിയന്ത്രണം: തോട്ടത്തിൽ വെള്ളം കെട്ടിനിൽക്കാതെ നോക്കുക, തണൽ മരങ്ങളുടെ ചില്ലകൾ വെട്ടി വെളിച്ചം കൊടുക്കുക. കാലവർഷത്തിന് തൊട്ടുമുമ്പ് (മെയ്–ജൂൺ) വള്ളിച്ചുവട്ടിൽ ട്രൈക്കോഡെർമ സമ്പുഷ്ടമാക്കിയ ചാണകപ്പൊടിയും വേപ്പിൻ പിണ്ണാക്കും (5 കിലോ ചാണകം + 1 കിലോ വേപ്പിൻ പിണ്ണാക്ക്) നൽകുക. വള്ളികളിൽ 1% ബോർഡോ മിശ്രിതം മെയ്–ജൂണിലും ഓഗസ്റ്റ്–സെപ്റ്റംബറിലും തളിക്കുക. പൊള്ളുവണ്ടിനെതിരെ 2% വേപ്പെണ്ണ–വെളുത്തുള്ളി മിശ്രിതം തളിക്കുക.", "source_name": "KAU Package of Practices: Spices & Condiments (Black Pepper)", "source_url": "https://pop.kau.in/spices&condiments.htm"}, {"id": "KAU-BANANA-01", "crop": "Banana (വാഴ)", "category": "Pest & Disease Management", "title_en": "Banana (Nendran) Pseudostem Weevil (Pindi Puzhu) & Sigatoka Leaf Spot", "title_ml": "വാഴയിലെ (നേന്ത്രൻ) പിണ്ടിപ്പുഴു (Pseudostem Weevil), സിഗാട്ടോക്ക ഇലപ്പുള്ളി രോഗം", "keywords": ["banana", "nendran", "weevil", "pseudostem weevil", "pindi puzhu", "sigatoka", "yellow leaf", "sucker", "bordeaux", "വാഴ", "നേന്ത്രൻ", "പിണ്ടിപ്പുഴു", "സിഗാട്ടോക്ക", "ഇലപ്പുള്ളി", "വാഴക്കന്ന്", "കുമ്മായം"], "content_en": "KAU Package of Practices for Banana (Musa spp.): (1) Pseudostem Weevil (Odoiporus longicollis / Pindi Puzhu): grubs bore inside the pseudostem from the 4th month onwards, causing yellowing of leaves and snapping of the stem. Management: Practice clean cultivation, select disease-free 3–4 month old sword suckers, dip suckers in cowdung slurry and ash, and place split pseudostem longitudinal traps (50 cm length) on the ground @ 65 traps/ha to collect and kill adult weevils. Swab or spray pseudostem with Beauveria bassiana bio-fungus (20g/L). (2) Sigatoka Leaf Spot: spindle-shaped brown spots with grey centers drying up leaves. Spray 1% Bordeaux mixture with sticker or propiconazole (1 ml/L) before monsoon. (3) Fertilizer: Apply 10 kg compost/FYM + 190g N, 115g P, 300g K per plant in 4–5 split doses along with 500g lime per pit at planting.", "content_ml": "KAU ശുപാർശ പ്രകാരം വാഴയിലെ പ്രധാന രോഗ-കീടങ്ങൾ: (1) പിണ്ടിപ്പുഴു (Pseudostem Weevil): നട്ട് 4-ാം മാസം മുതൽ തട തുരന്ന് അകത്തിരുന്ന് തിന്ന് വാഴയെ കാറ്റിൽ ഒടിച്ചു കളയുന്നു. നിയന്ത്രണം: രോഗമില്ലാത്ത വാഴക്കന്നുകൾ തിരഞ്ഞെടുക്കുക, ചാണകവെള്ളത്തിലും ചാരത്തിലും മുക്കി വെയിലത്ത് വെച്ച് നടുക. തോട്ടത്തിൽ 50 സെ.മീ നീളത്തിൽ വാഴത്തട കീറി കെണിയായി വെച്ച് (ഹെക്ടറിന് 65 എണ്ണം) ചെല്ലികളെ പിടിച്ച് നശിപ്പിക്കുക. ബ്യൂവേറിയ ബാസിയാന (Beauveria bassiana 20 ഗ്രാം/ലിറ്റർ) തടയിൽ തളിക്കുക. (2) സിഗാട്ടോക്ക ഇലപ്പുള്ളി: ഇലകൾ കരിഞ്ഞുണങ്ങുന്നതിന് 1% ബോർഡോ മിശ്രിതം തളിക്കുക. (3) വളപ്രയോഗം: വാഴയ്ക്ക് 10 കിലോ ചാണകപ്പൊടിയും N:P:K 190:115:300 ഗ്രാം രാസവളങ്ങളും 4–5 തവണയായി നൽകുക. കുഴിയിൽ 500 ഗ്രാം കുമ്മായം ചേർക്കുക.", "source_name": "KAU Package of Practices: Fruits (Banana)", "source_url": "https://pop.kau.in/fruits.htm"}, {"id": "KAU-VEG-01", "crop": "Vegetables (പച്ചക്കറി)", "category": "Pest & Disease Management", "title_en": "Vegetable Pests (Fruit Fly in Bitter Gourd / Snake Gourd & Mosaic Virus)", "title_ml": "പച്ചക്കറികളിലെ കീടങ്ങൾ (പാവൽ/പടവലത്തിലെ കായീച്ച, പയറിലെ മൊസൈക് രോഗം)", "keywords": ["vegetable", "vegetables", "bitter gourd", "fruit fly", "cowpea", "tomato", "chilli", "mosaic", "pheromone trap", "neem", "പച്ചക്കറി", "പാവൽ", "പയർ", "കായീച്ച", "മൊസൈക്", "ഫിറമോൺ", "വേപ്പെണ്ണ"], "content_en": "KAU Package of Practices for Vegetables: (1) Fruit Fly (Bactrocera cucurbitae) in gourds (Bitter gourd, Snake gourd, Cucumber): maggots feed inside young fruits causing rotting and premature drop. Management: Bagging young fruits with paper covers, installing cue-lure pheromone traps @ 10 traps/ha, using bait sprays (20g jaggery + 2ml malathion per liter sprayed on underside of leaves), and raking the soil to expose pupae. (2) Cowpea Mosaic Disease & Aphids: transmitted by aphids causing crinkling and yellow mottling. Control aphids with 2% neem oil-garlic emulsion or Verticillium lecanii bio-agent, and uproot severely infected viral plants early.", "content_ml": "KAU ശുപാർശ: (1) കായീച്ച (Fruit fly) പാവൽ, പടവലം, വെള്ളരി എന്നിവയിൽ: കായ്കളിൽ മുട്ടയിട്ട് പുഴുക്കൾ തിന്ന് കായ്കൾ ചീഞ്ഞുപോകുന്നു. നിയന്ത്രണം: ഇളം കായ്കൾ കടലാസ് കവറുകൾ ഇട്ട് മൂടുക, ക്യൂ-ല്യൂർ ഫിറമോൺ കെണികൾ (ഹെക്ടറിന് 10 എണ്ണം) സ്ഥാപിക്കുക, ശർക്കര-വിഷക്കെണി (20 ഗ്രാം ശർക്കര + 2 മി.ലി മാലത്തിയോൺ ഒരു ലിറ്ററിൽ) ഇലകളുടെ അടിയിൽ തളിക്കുക. (2) പയറിലെ മൊസൈക് രോഗവും മുഞ്ഞയും: ഇലകൾ ചുരുണ്ട് മഞ്ഞളിക്കുന്നത് തടയാൻ 2% വേപ്പെണ്ണ-വെളുത്തുള്ളി മിശ്രിതം തളിക്കുക. വൈറസ് ബാധിച്ച ചെടികൾ വേരോടെ പിഴുതുമാറ്റുക.", "source_name": "KAU Package of Practices: Vegetables", "source_url": "https://pop.kau.in/vegetables.htm"}, {"id": "KAU-TAPIOCA-01", "crop": "Tapioca / Cassava (കപ്പ / മരച്ചീനി)", "category": "Crop Care & Disease Management", "title_en": "Tapioca (Cassava) Mosaic Disease, Planting Season & Liming", "title_ml": "കപ്പയിലെ (മരച്ചീനി) മൊസൈക് രോഗം, നടീൽ രീതി, കുമ്മായം പ്രയോഗം", "keywords": ["tapioca", "cassava", "kappa", "mosaic", "whitefly", "stem cutting", "lime", "കപ്പ", "മരച്ചീനി", "മൊസൈക്", "വെള്ളീച്ച", "കമ്പ്", "കുമ്മായം"], "content_en": "KAU Package of Practices for Tuber Crops (Cassava / Tapioca): (1) Cassava Mosaic Disease (CMD): viral disease spread by whiteflies (Bemisia tabaci) and infected stem cuttings, causing mottled and distorted stunted leaves. Management: Select stem cuttings strictly from healthy disease-free mother plants (tag healthy plants between Sept–Dec), rogue out infected plants, and plant mosaic-tolerant varieties like H-97, H-165, or Sree Padmanabha. (2) Land Prep & Liming: Tapioca prefers well-drained red laterite soil. Apply 500 kg/ha lime or dolomite during land preparation to correct soil acidity, and apply 12.5 tonnes/ha FYM along with NPK 100:50:100 kg/ha in two split doses (half at planting and half at 45–60 days).", "content_ml": "KAU ശുപാർശ: (1) കപ്പയിലെ മൊസൈക് രോഗം: വെള്ളീച്ചകൾ പരത്തുന്ന വൈറസ് രോഗം. ഇലകളിൽ മഞ്ഞപ്പുള്ളികൾ വന്ന് ചുരുങ്ങി വളർച്ച മുരടിക്കുന്നു. നിയന്ത്രണം: രോഗമില്ലാത്ത ആരോഗ്യകരമായ തണ്ടുകൾ മാത്രം മുറിച്ച് നടുക, രോഗം വന്ന ചെടികൾ പിഴുതുമാറ്റുക, H-97, ശ്രീ പത്മനാഭ തുടങ്ങിയ രോഗപ്രതിരോധ ശേഷിയുള്ള വിത്തിനങ്ങൾ ഉപയോഗിക്കുക. (2) നിലമൊരുക്കലും കുമ്മായവും: അമ്ലതയുള്ള കേരളത്തിലെ മണ്ണിൽ കപ്പ നടുന്നതിന് മുമ്പ് ഹെക്ടറിന് 500 കിലോ കുമ്മായം അല്ലെങ്കിൽ ഡോളമൈറ്റ് ചേർക്കുക. ഹെക്ടറിന് 12.5 ടൺ കാലിവളവും N:P:K 100:50:100 കിലോ രണ്ടു തവണയായി നൽകുക.", "source_name": "KAU Package of Practices: Tubers (Cassava)", "source_url": "https://pop.kau.in/tubers.htm"}, {"id": "KAU-SOIL-01", "crop": "Soil & Fertilizer (മണ്ണ് & വളം)", "category": "Soil Acidity, Liming & Soil Health Card", "title_en": "Kerala Soil Acidity Management, Lime / Dolomite Dosage & Soil Testing", "title_ml": "കേരളത്തിലെ മണ്ണിന്റെ അമ്ലത നിയന്ത്രണം, കുമ്മായം/ഡോളമൈറ്റ് പ്രയോഗവും മണ്ണ് പരിശോധനയും", "keywords": ["soil", "soil test", "lime", "dolomite", "acidity", "ph", "fertilizer", "soil health card", "krishi bhavan", "മണ്ണ്", "മണ്ണ് പരിശോധന", "കുമ്മായം", "ഡോളമൈറ്റ്", "അമ്ലത", "വളം", "കൃഷിഭവൻ"], "content_en": "According to KAU and Department of Agriculture Kerala: Over 90% of Kerala soils are highly acidic (pH 4.5 to 5.5), which locks up phosphorus and causes calcium/magnesium deficiencies. Management: Have your soil tested for free at the nearest Krishi Bhavan / Mobile Soil Testing Lab. Application of agricultural lime or dolomite @ 250 to 500 kg per hectare (1 to 2 kg per cent of land) once a year raises soil pH, improves fertilizer use efficiency by 30-40%, and reduces root rot diseases. Lime must be applied 2 weeks before applying chemical fertilizers (never mix lime directly with urea or potash).", "content_ml": "കേരള കാർഷിക സർവകലാശാലയും കൃഷിവകുപ്പും നിർദ്ദേശിക്കുന്നത്: കേരളത്തിലെ 90 ശതമാനത്തിലധികം മണ്ണും ഉയർന്ന അമ്ലതയുള്ളതാണ് (pH 4.5 - 5.5). ഇത് കാരണം ചെടികൾക്ക് വളം വലിച്ചെടുക്കാൻ കഴിയില്ല. നിയന്ത്രണം: അടുത്തുള്ള കൃഷിഭവൻ വഴി സൗജന്യമായി മണ്ണ് പരിശോധിച്ച് സോയിൽ ഹെൽത്ത് കാർഡ് എടുക്കുക. നിലമൊരുക്കുമ്പോൾ സെന്റൊന്നിന് 1 മുതൽ 2 കിലോ വരെ (ഹെക്ടറിന് 250-500 കിലോ) കുമ്മായമോ ഡോളമൈറ്റോ ചേർക്കുക. കുമ്മായം ചേർത്ത് 2 ആഴ്ച കഴിഞ്ഞു മാത്രമേ രാസവളങ്ങൾ നൽകാവൂ (യൂറിയയോടൊപ്പം കുമ്മായം കലർത്തരുത്).", "source_name": "KAU Soil Health & Nutrient Management Guidelines", "source_url": "https://kau.in/sites/default/files/documents/pop2016.pdf"}, {"id": "KAU-SCHEMES-GENERAL", "crop": "Government Schemes (സർക്കാർ പദ്ധതികൾ)", "category": "Krishi Bhavan Subsidies, KCC Loan & Registration", "title_en": "Kerala Farmer Registration (AIMS Portal), Subsidies & Kisan Credit Card (KCC)", "title_ml": "കേരള കർഷക രജിസ്ട്രേഷൻ (AIMS പോർട്ടൽ), കൃഷിഭവൻ സബ്സിഡികളും കിസാൻ ക്രെഡിറ്റ് കാർഡും (KCC)", "keywords": ["subsidy", "scheme", "aims", "registration", "kisan credit card", "kcc", "krishi bhavan", "loan", "subhiksha", "pm kisan", "സബ്സിഡി", "പദ്ധതി", "എയിംസ്", "രജിസ്ട്രേഷൻ", "കിസാൻ ക്രെഡിറ്റ് കാർഡ്", "കൃഷിഭവൻ", "ലോൺ", "സുഭിക്ഷ", "പിഎം കിസാൻ"], "content_en": "Major Government Support for Kerala Farmers: (1) AIMS Portal (aims.kerala.gov.in): Every farmer in Kerala should complete one-time registration on the Agriculture Information Management System (AIMS) with Aadhaar and land tax receipt to access state subsidies, crop insurance, and disaster compensation. (2) Subhiksha Keralam Scheme: Direct financial assistance up to ₹40,000/ha for fallow land paddy farming and ₹25,000–₹35,000/ha for vegetables and tubers. (3) Kisan Credit Card (KCC): Low-interest agricultural crop loans (at 4% effective interest with timely repayment subvention) up to ₹3 lakh from cooperative and nationalized banks without collateral up to ₹1.6 lakh. (4) PM-KISAN: Direct income support of ₹6,000/year in 3 installments of ₹2,000.", "content_ml": "കേരളത്തിലെ കർഷകർക്കുള്ള പ്രധാന ആനുകൂല്യങ്ങൾ: (1) എയിംസ് (AIMS - aims.kerala.gov.in) പോർട്ടൽ രജിസ്ട്രേഷൻ: കൃഷിഭവൻ വഴിയുള്ള സബ്സിഡികൾ, വിള ഇൻഷുറൻസ്, പ്രകൃതിക്ഷോഭ നഷ്ടപരിഹാരം എന്നിവയ്ക്ക് ആധാർ, കരം രസീത് ഉപയോഗിച്ച് എയിംസിൽ രജിസ്റ്റർ ചെയ്യുക. (2) സുഭിക്ഷ കേരളം പദ്ധതി: തരിശുനില നെൽകൃഷിക്ക് ഹെക്ടറിന് 40,000 രൂപ വരെയും പച്ചക്കറി, കിഴങ്ങുവർഗ്ഗങ്ങൾക്ക് 25,000–35,000 രൂപ വരെയും സബ്സിഡി. (3) കിസാൻ ക്രെഡിറ്റ് കാർഡ് (KCC): ബാങ്കുകളിൽ നിന്ന് 4% കുറഞ്ഞ പലിശ നിരക്കിൽ 3 ലക്ഷം രൂപ വരെ കാർഷിക വായ്പ (1.6 ലക്ഷം രൂപ വരെ ഈടില്ലാതെ). (4) പിഎം കിസാൻ: വർഷത്തിൽ 6000 രൂപ നേരിട്ട് അക്കൗണ്ടിൽ.", "source_name": "Dept. of Agriculture Development & Farmers' Welfare, Kerala", "source_url": "https://keralaagriculture.gov.in/"}], "government_schemes": [{"id": "SCHEME-SUBHIKSHA", "name_en": "Subhiksha Keralam Scheme (Fallow Land & Integrated Farming Subsidy)", "name_ml": "സുഭിക്ഷ കേരളം പദ്ധതി (തരിശുനില കൃഷിയും സംയോജിത കൃഷി സബ്സിഡിയും)", "authority": "Department of Agriculture Development & Farmers' Welfare, Govt. of Kerala", "crops": ["Paddy", "Coconut", "Black Pepper", "Banana", "Vegetables", "Tuber Crops", "Tapioca", "Soil & Fertilizer"], "min_land_ha": 0.02, "max_land_ha": 100.0, "requires_ownership": false, "benefit_en": "Up to ₹40,000/hectare assistance for fallow land paddy cultivation; ₹25,000–₹35,000/ha for vegetables, banana, and tubers; up to 50% capital subsidy for integrated dairy and poultry units.", "benefit_ml": "തരിശുനില നെൽകൃഷിക്ക് ഹെക്ടറിന് 40,000 രൂപ വരെയും, പച്ചക്കറി, വാഴ, കിഴങ്ങുവർഗ്ഗ കൃഷികൾക്ക് ഹെക്ടറിന് 25,000–35,000 രൂപ വരെയും ധനസഹായം.", "eligibility_en": "Individual farmers, tenant farmers/lessees, Kudumbashree groups, and youth cooperatives in Kerala.", "eligibility_ml": "കേരളത്തിലെ കർഷകർ, പാട്ടക്കൃഷിക്കാർ, കുടുംബശ്രീ സംഘങ്ങൾ എന്നിവർക്ക് അർഹതയുണ്ട്.", "how_to_apply_en": "Register via your local Krishi Bhavan or the AIMS Kerala portal (aims.kerala.gov.in).", "how_to_apply_ml": "തൊട്ടടുത്തുള്ള കൃഷിഭവൻ വഴിയോ എയിംസ് (aims.kerala.gov.in) പോർട്ടൽ വഴിയോ അപേക്ഷിക്കാം.", "source_url": "https://kerala.gov.in/whatsnewdetailwise/MTg1NDM5ODA5Ljcy?lan=en"}, {"id": "SCHEME-PMKISAN", "name_en": "PM-KISAN Samman Nidhi (Direct Income Support)", "name_ml": "പി.എം-കിസാൻ സമ്മാൻ നിധി (PM-KISAN)", "authority": "Ministry of Agriculture & Farmers Welfare, Govt. of India", "crops": ["Paddy", "Coconut", "Black Pepper", "Banana", "Vegetables", "Tuber Crops", "Tapioca", "Soil & Fertilizer"], "min_land_ha": 0.01, "max_land_ha": 100.0, "requires_ownership": true, "benefit_en": "₹6,000 per year transferred directly to farmer bank account via DBT in three 4-monthly installments of ₹2,000.", "benefit_ml": "പ്രതിവർഷം 6,000 രൂപ (4 മാസത്തിലൊരിക്കൽ 2,000 രൂപ വീതം) കർഷകന്റെ ബാങ്ക് അക്കൗണ്ടിലേക്ക് നേരിട്ട് ലഭിക്കുന്നു.", "eligibility_en": "All landholding farmer families with cultivable land in their name and mandatory eKYC.", "eligibility_ml": "സ്വന്തമായി കൃഷിഭൂമിയുള്ള കർഷക കുടുംബങ്ങൾക്ക് അർഹതയുണ്ട്. ആധാർ ഇ-കെ.വൈ.സി നിർബന്ധമാണ്.", "how_to_apply_en": "Apply online at pmkisan.gov.in or through Akshaya / CSC centres / Krishi Bhavan.", "how_to_apply_ml": "pmkisan.gov.in വഴിയോ അക്ഷയ/CSC കേന്ദ്രങ്ങൾ വഴിയോ രജിസ്റ്റർ ചെയ്യാം.", "source_url": "https://pmkisan.gov.in/"}, {"id": "SCHEME-AIMS-INSURANCE", "name_en": "Kerala State Crop Insurance Scheme (AIMS Portal)", "name_ml": "സംസ്ഥാന വിള ഇൻഷുറൻസ് പദ്ധതി (AIMS Kerala)", "authority": "Department of Agriculture Development & Farmers' Welfare, Govt. of Kerala", "crops": ["Paddy", "Coconut", "Black Pepper", "Banana", "Vegetables", "Tuber Crops", "Tapioca"], "min_land_ha": 0.01, "max_land_ha": 100.0, "requires_ownership": false, "benefit_en": "Financial compensation for crop damage caused by natural calamities (flood, drought, gale wind, landslide, wild animals) across 27 notified crops including Paddy, Coconut, Banana, and Pepper.", "benefit_ml": "പ്രകൃതിക്ഷോഭം (വെള്ളപ്പൊക്കം, കാറ്റ്, വന്യമൃഗ ആക്രമണം) മൂലമുണ്ടാകുന്ന കൃഷിനാശത്തിന് നെല്ല്, തെങ്ങ്, വാഴ, കുരുമുളക് ഉൾപ്പെടെയുള്ള വിളകൾക്ക് നഷ്ടപരിഹാരം.", "eligibility_en": "Both land owners and tenant/lease farmers in Kerala registered on the AIMS portal.", "eligibility_ml": "കേരളത്തിലെ സ്വന്തം ഭൂമിയിലോ പാട്ടഭൂമിയിലോ കൃഷി ചെയ്യുന്ന എല്ലാ കർഷകർക്കും ചേരാം.", "how_to_apply_en": "Log in to aims.kerala.gov.in (Farmer Login) and submit the Online Crop Insurance form.", "how_to_apply_ml": "aims.kerala.gov.in എന്ന പോർട്ടലിൽ 'Farmer Login' വഴി ഓൺലൈനായി അപേക്ഷിക്കാം.", "source_url": "https://keralaagriculture.gov.in/wp-content/uploads/2021/03/SUMMARY-Online-Crop-Insurance-Policy-Processing-in-AIMS-Final-.pdf"}, {"id": "SCHEME-CDB", "name_en": "Coconut Development Board (CDB) Replanting & Palm Insurance", "name_ml": "നാളികേര വികസന ബോർഡ് (CDB) പുനരുദ്ധാരണ-ഇൻഷുറൻസ് പദ്ധതികൾ", "authority": "Coconut Development Board (CDB), Ministry of Agriculture, Govt. of India", "crops": ["Coconut"], "min_land_ha": 0.02, "max_land_ha": 4.0, "requires_ownership": true, "benefit_en": "Subsidy for cutting senile/diseased palms, replanting quality seedlings, integrated nutrient management (up to 4 ha), plus Coconut Palm Insurance Scheme (CPIS).", "benefit_ml": "രോഗം ബാധിച്ച തെങ്ങുകൾ വെട്ടിമാറ്റി പുതിയ തൈകൾ നടുന്നതിനും തെങ്ങ് ഇൻഷുറൻസിനും സബ്സിഡി (പരമാവധി 4 ഹെക്ടർ വരെ).", "eligibility_en": "Coconut farmers (up to 4 ha) and members of registered Coconut Producer Societies (CPS).", "eligibility_ml": "തെങ്ങ് കർഷകർക്കും (4 ഹെക്ടർ വരെ) നാളികേര ഉൽപ്പാദക സംഘങ്ങളിലെ അംഗങ്ങൾക്കും അർഹതയുണ്ട്.", "how_to_apply_en": "Apply through Coconut Producer Societies (CPS), Krishi Bhavan, or coconutboard.gov.in.", "how_to_apply_ml": "നാളികേര ഉൽപ്പാദക സംഘങ്ങൾ (CPS), കൃഷിഭവൻ, അല്ലെങ്കിൽ coconutboard.gov.in വഴി അപേക്ഷിക്കാം.", "source_url": "https://www.coconutboard.gov.in/RRSite-Details.aspx"}, {"id": "SCHEME-PMFBY", "name_en": "Pradhan Mantri Fasal Bima Yojana (PMFBY)", "name_ml": "പ്രധാനമന്ത്രി ഫസൽ ബീമ യോജന (PMFBY - കേന്ദ്ര വിള ഇൻഷുറൻസ്)", "authority": "Ministry of Agriculture & Farmers Welfare, Govt. of India", "crops": ["Paddy", "Black Pepper", "Banana", "Vegetables", "Tuber Crops", "Tapioca"], "min_land_ha": 0.01, "max_land_ha": 100.0, "requires_ownership": false, "benefit_en": "Comprehensive yield-based crop insurance with low farmer premium (2% for Kharif/Virippu, 1.5% for Rabi/Mundakan, 5% for horticultural crops).", "benefit_ml": "കുറഞ്ഞ പ്രീമിയം നിരക്കിൽ (2% ഖാരിഫ്, 1.5% റാബി) സമഗ്രമായ വിള ഇൻഷുറൻസ് പരിരക്ഷ.", "eligibility_en": "All farmers including sharecroppers and tenant farmers growing notified crops in notified areas.", "eligibility_ml": "വിജ്ഞാപനം ചെയ്യപ്പെട്ട പ്രദേശങ്ങളിൽ കൃഷി ചെയ്യുന്ന എല്ലാ കർഷകർക്കും പാട്ടക്കൃഷിക്കാർക്കും ചേരാം.", "how_to_apply_en": "Enroll via pmfby.gov.in, your bank branch, or Common Service Centres (CSCs).", "how_to_apply_ml": "pmfby.gov.in പോർട്ടൽ വഴിയോ ബാങ്ക് ശാഖകൾ വഴിയോ അക്ഷയ കേന്ദ്രങ്ങൾ വഴിയോ ചേരാം.", "source_url": "https://pmfby.gov.in/"}]};
+    const CODE_FILES = {
+      "app.py": "# Main Streamlit Interface - AI Voice Assistant for Farmers\n# Group Members: Akash B L (TRV23CE010), Gopika L V (TRV23CE039), Karthika B Nair (TRV23CE042)\n\nimport io\nimport os\nimport streamlit as st\nfrom rag_engine import KeralaAgriRAGEngine\n\ntry:\n    from gtts import gTTS\n    HAS_GTTS = True\nexcept ImportError:\n    HAS_GTTS = False\n\ntry:\n    import speech_recognition as sr\n    HAS_SR = True\nexcept ImportError:\n    HAS_SR = False\n\nst.set_page_config(\n    page_title=\"AI Voice Assistant for Farmers - Kerala\",\n    page_icon=\"\ud83c\udf3e\",\n    layout=\"wide\",\n    initial_sidebar_state=\"expanded\"\n)\n\n# Custom CSS matching index.html theme and typography\nst.markdown(\"\"\"\n<style>\n  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Malayalam:wght@400;500;600;700&display=swap');\n  \n  html, body, [class*=\"css\"] {\n    font-family: 'Inter', 'Noto Sans Malayalam', sans-serif;\n  }\n  \n  .stApp {\n    background-color: #f4f7f4;\n    color: #1c2e24;\n  }\n  \n  /* Top Banner */\n  .header-banner {\n    background: linear-gradient(135deg, #022c22 0%, #064e3b 50%, #15803d 100%);\n    color: white;\n    padding: 18px 24px;\n    border-radius: 16px;\n    margin-bottom: 20px;\n    box-shadow: 0 4px 12px rgba(2, 44, 34, 0.15);\n  }\n  \n  .header-title {\n    font-size: 22px;\n    font-weight: 700;\n    margin: 0;\n    display: flex;\n    align-items: center;\n    gap: 10px;\n  }\n  \n  .header-badge {\n    background-color: #f59e0b;\n    color: #022c22;\n    font-size: 11px;\n    font-weight: 700;\n    padding: 3px 10px;\n    border-radius: 9999px;\n  }\n  \n  .header-sub {\n    font-size: 13px;\n    color: #a7f3d0;\n    margin-top: 4px;\n  }\n  \n  .header-team {\n    font-size: 11px;\n    color: #fef3c7;\n    background: rgba(2, 44, 34, 0.4);\n    display: inline-block;\n    padding: 4px 12px;\n    border-radius: 8px;\n    border: 1px solid rgba(16, 185, 129, 0.3);\n    margin-top: 8px;\n  }\n  \n  /* Pipeline Step Cards */\n  .pipeline-card {\n    background: white;\n    border: 1px solid #cbd5e1;\n    border-radius: 10px;\n    padding: 10px 12px;\n    text-align: center;\n  }\n  .pipeline-num {\n    font-size: 12px;\n    font-weight: 700;\n    color: #064e3b;\n  }\n  .pipeline-desc {\n    font-size: 10px;\n    color: #64748b;\n    margin-top: 2px;\n  }\n  \n  /* Malayalam Typography */\n  .ml-box {\n    font-family: 'Noto Sans Malayalam', sans-serif;\n    line-height: 1.8;\n  }\n  \n  /* Buttons */\n  div.stButton > button {\n    border-radius: 10px;\n    font-weight: 600;\n    font-size: 12px;\n    transition: all 0.2s ease;\n  }\n  div.stButton > button:hover {\n    border-color: #15803d;\n    color: #15803d;\n  }\n  \n  /* Primary Form Submit Button */\n  div[data-testid=\"stFormSubmitButton\"] > button {\n    background-color: #15803d !important;\n    color: white !important;\n    border: none !important;\n    padding: 10px !important;\n    font-size: 14px !important;\n    border-radius: 12px !important;\n  }\n  div[data-testid=\"stFormSubmitButton\"] > button:hover {\n    background-color: #166534 !important;\n  }\n</style>\n\"\"\", unsafe_allow_html=True)\n\n@st.cache_resource\ndef get_rag_engine():\n    kb_path = os.path.join(os.path.dirname(__file__), \"knowledge_base.json\")\n    return KeralaAgriRAGEngine(kb_path)\n\nengine = get_rag_engine()\n\nif \"user_query\" not in st.session_state:\n    st.session_state.user_query = \"\u0d28\u0d46\u0d32\u0d4d\u0d32\u0d3f\u0d32\u0d46 \u0d2e\u0d41\u0d1e\u0d4d\u0d1e (BPH) \u0d0e\u0d19\u0d4d\u0d19\u0d28\u0d46 \u0d28\u0d3f\u0d2f\u0d28\u0d4d\u0d24\u0d4d\u0d30\u0d3f\u0d15\u0d4d\u0d15\u0d3e\u0d02?\"\n\ndef set_query(text):\n    st.session_state.user_query = text\n\n# Top Header Banner matching index.html\nst.markdown(\"\"\"\n<div class=\"header-banner\">\n  <div class=\"header-title\">\n    <span>\ud83c\udf3e AI Voice Assistant for Farmers</span>\n    <span class=\"header-badge\">\u0d15\u0d47\u0d30\u0d33 \u0d15\u0d7c\u0d37\u0d15 \u0d38\u0d39\u0d3e\u0d2f\u0d3f</span>\n  </div>\n  <div class=\"header-sub\">\n    Bilingual (Malayalam/English) RAG Advisory &amp; Government Scheme Matcher for Kerala\n  </div>\n  <div class=\"header-team\">\n    <strong>Group:</strong> Akash B L (TRV23CE010) \u2022 Gopika L V (TRV23CE039) \u2022 Karthika B Nair (TRV23CE042)\n  </div>\n</div>\n\"\"\", unsafe_allow_html=True)\n\n# 6-Step RAG Architecture Execution Pipeline Cards (Slide 05)\nst.markdown(\"##### \u26a1 6-Step RAG Execution Pipeline (Slide 05)\")\np1, p2, p3, p4, p5, p6 = st.columns(6)\np1.markdown('<div class=\"pipeline-card\"><div class=\"pipeline-num\">1. Speak / Type</div><div class=\"pipeline-desc\">Malayalam / English</div></div>', unsafe_allow_html=True)\np2.markdown('<div class=\"pipeline-card\"><div class=\"pipeline-num\">2. Speech-to-Text</div><div class=\"pipeline-desc\">Audio Transcription</div></div>', unsafe_allow_html=True)\np3.markdown('<div class=\"pipeline-card\"><div class=\"pipeline-num\">3. RAG Retrieval</div><div class=\"pipeline-desc\">Cosine Similarity</div></div>', unsafe_allow_html=True)\np4.markdown('<div class=\"pipeline-card\"><div class=\"pipeline-num\">4. Grounded LLM</div><div class=\"pipeline-desc\">Answers from KAU</div></div>', unsafe_allow_html=True)\np5.markdown('<div class=\"pipeline-card\"><div class=\"pipeline-num\">5. Scheme Check</div><div class=\"pipeline-desc\">Profile Matcher</div></div>', unsafe_allow_html=True)\np6.markdown('<div class=\"pipeline-card\"><div class=\"pipeline-num\">6. Text-to-Speech</div><div class=\"pipeline-desc\">Audio Read-Aloud</div></div>', unsafe_allow_html=True)\n\nst.markdown(\"<div style='height: 12px;'></div>\", unsafe_allow_html=True)\n\n# Sidebar - Farmer Profile Inputs\nwith st.sidebar:\n    st.markdown(\"### \ud83d\udc68\u200d\ud83c\udf3e Farmer Profile\")\n    st.caption(\"Parameters used to auto-match eligible government schemes\")\n    district = st.selectbox(\n        \"District (\u0d1c\u0d3f\u0d32\u0d4d\u0d32)\",\n        [\"Kollam\", \"Thiruvananthapuram\", \"Alappuzha (Kuttanad)\", \"Thrissur\", \"Palakkad\", \"Wayanad\", \"Idukki\", \"Kottayam\", \"Ernakulam\"]\n    )\n    selected_crops = st.multiselect(\n        \"Cultivated Crops (\u0d15\u0d43\u0d37\u0d3f \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d41\u0d28\u0d4d\u0d28 \u0d35\u0d3f\u0d33\u0d15\u0d7e)\",\n        [\"Paddy\", \"Coconut\", \"Black Pepper\", \"Banana\", \"Vegetables\", \"Tuber Crops\", \"Soil & Fertilizer\"],\n        default=[\"Paddy\", \"Coconut\", \"Black Pepper\", \"Banana\"]\n    )\n    land_ha = st.slider(\"Land Area (Hectares / \u0d39\u0d46\u0d15\u0d4d\u0d1f\u0d7c)\", 0.1, 10.0, 0.8, 0.1)\n    st.caption(f\"Equivalent: **{(land_ha * 2.471):.1f} Acres**\")\n    is_owner = st.checkbox(\"Owner Cultivator (\u0d38\u0d4d\u0d35\u0d28\u0d4d\u0d24\u0d02 \u0d2d\u0d42\u0d2e\u0d3f / \u0d2a\u0d1f\u0d4d\u0d1f\u0d2f\u0d02)\", value=True)\n\n    st.divider()\n    st.markdown(\"### \u2699\ufe0f Language & Voice Settings\")\n    language_mode = st.radio(\n        \"Output Language\",\n        [\"Bilingual (Malayalam + English)\", \"Malayalam Only\", \"English Only\"]\n    )\n    tts_lang = st.selectbox(\"TTS Voice Language\", [\"ml (Malayalam)\", \"en (English)\"])\n    api_key = st.text_input(\"External LLM API Key (Optional)\", type=\"password\", help=\"Leave blank for local offline KAU RAG synthesizer.\")\n\n    st.divider()\n    st.caption(\"Developed by: Akash B L, Gopika L V, Karthika B Nair\")\n\n# Main 2-Column Interface\ncol1, col2 = st.columns([7, 5])\n\nwith col1:\n    st.markdown(\"### \ud83c\udf99\ufe0f Ask Any Farming Question (\u0d1a\u0d4b\u0d26\u0d4d\u0d2f\u0d02 \u0d1a\u0d4b\u0d26\u0d3f\u0d15\u0d4d\u0d15\u0d41\u0d15)\")\n    st.caption(\"Click a sample question or type your custom query below:\")\n\n    c1, c2, c3 = st.columns(3)\n    if c1.button(\"\ud83c\udf3e \u0d28\u0d46\u0d32\u0d4d\u0d32\u0d3f\u0d32\u0d46 \u0d2e\u0d41\u0d1e\u0d4d\u0d1e (BPH)\", use_container_width=True):\n        set_query(\"\u0d28\u0d46\u0d32\u0d4d\u0d32\u0d3f\u0d32\u0d46 \u0d2e\u0d41\u0d1e\u0d4d\u0d1e \u0d0e\u0d19\u0d4d\u0d19\u0d28\u0d46 \u0d28\u0d3f\u0d2f\u0d28\u0d4d\u0d24\u0d4d\u0d30\u0d3f\u0d15\u0d4d\u0d15\u0d3e\u0d02? \u0d0f\u0d24\u0d4d \u0d35\u0d3f\u0d24\u0d4d\u0d24\u0d3e\u0d23\u0d4d \u0d28\u0d32\u0d4d\u0d32\u0d24\u0d4d?\")\n    if c2.button(\"\ud83e\udd65 \u0d24\u0d46\u0d19\u0d4d\u0d19\u0d3f\u0d32\u0d46 \u0d1a\u0d46\u0d32\u0d4d\u0d32\u0d3f\", use_container_width=True):\n        set_query(\"\u0d24\u0d46\u0d19\u0d4d\u0d19\u0d3f\u0d32\u0d46 \u0d1a\u0d46\u0d2e\u0d4d\u0d2a\u0d7b \u0d1a\u0d46\u0d32\u0d4d\u0d32\u0d3f, \u0d15\u0d4a\u0d2e\u0d4d\u0d2a\u0d7b \u0d1a\u0d46\u0d32\u0d4d\u0d32\u0d3f \u0d0e\u0d28\u0d4d\u0d28\u0d3f\u0d35\u0d2f\u0d46 \u0d0e\u0d19\u0d4d\u0d19\u0d28\u0d46 \u0d28\u0d3f\u0d2f\u0d28\u0d4d\u0d24\u0d4d\u0d30\u0d3f\u0d15\u0d4d\u0d15\u0d3e\u0d02?\")\n    if c3.button(\"\ud83c\udf3f \u0d15\u0d41\u0d30\u0d41\u0d2e\u0d41\u0d33\u0d15\u0d4d \u0d35\u0d3e\u0d1f\u0d4d\u0d1f\u0d02\", use_container_width=True):\n        set_query(\"\u0d15\u0d41\u0d30\u0d41\u0d2e\u0d41\u0d33\u0d15\u0d3f\u0d32\u0d46 \u0d26\u0d4d\u0d30\u0d41\u0d24\u0d35\u0d3e\u0d1f\u0d4d\u0d1f\u0d02 \u0d24\u0d1f\u0d2f\u0d3e\u0d7b \u0d1f\u0d4d\u0d30\u0d48\u0d15\u0d4d\u0d15\u0d4b\u0d21\u0d46\u0d7c\u0d2e\u0d2f\u0d41\u0d02 \u0d2c\u0d4b\u0d7c\u0d21\u0d4b \u0d2e\u0d3f\u0d36\u0d4d\u0d30\u0d3f\u0d24\u0d35\u0d41\u0d02 \u0d0e\u0d19\u0d4d\u0d19\u0d28\u0d46 \u0d09\u0d2a\u0d2f\u0d4b\u0d17\u0d3f\u0d15\u0d4d\u0d15\u0d23\u0d02?\")\n\n    c4, c5, c6 = st.columns(3)\n    if c4.button(\"\ud83c\udf4c \u0d35\u0d3e\u0d34\u0d2f\u0d3f\u0d32\u0d46 \u0d2a\u0d3f\u0d23\u0d4d\u0d1f\u0d3f\u0d2a\u0d4d\u0d2a\u0d41\u0d34\u0d41\", use_container_width=True):\n        set_query(\"\u0d35\u0d3e\u0d34\u0d2f\u0d3f\u0d32\u0d46 \u0d2a\u0d3f\u0d23\u0d4d\u0d1f\u0d3f\u0d2a\u0d4d\u0d2a\u0d41\u0d34\u0d41 \u0d28\u0d3f\u0d2f\u0d28\u0d4d\u0d24\u0d4d\u0d30\u0d23\u0d35\u0d41\u0d02 \u0d35\u0d33\u0d2a\u0d4d\u0d30\u0d2f\u0d4b\u0d17\u0d35\u0d41\u0d02 \u0d0e\u0d19\u0d4d\u0d19\u0d28\u0d46?\")\n    if c5.button(\"\ud83e\udd6c \u0d2a\u0d1a\u0d4d\u0d1a\u0d15\u0d4d\u0d15\u0d31\u0d3f \u0d15\u0d3e\u0d2f\u0d40\u0d1a\u0d4d\u0d1a\", use_container_width=True):\n        set_query(\"\u0d2a\u0d3e\u0d35\u0d32\u0d3f\u0d32\u0d46\u0d2f\u0d41\u0d02 \u0d2a\u0d2f\u0d31\u0d3f\u0d32\u0d46\u0d2f\u0d41\u0d02 \u0d15\u0d3e\u0d2f\u0d40\u0d1a\u0d4d\u0d1a\u0d2f\u0d41\u0d02 \u0d15\u0d40\u0d1f\u0d19\u0d4d\u0d19\u0d33\u0d41\u0d02 \u0d0e\u0d19\u0d4d\u0d19\u0d28\u0d46 \u0d24\u0d1f\u0d2f\u0d3e\u0d02?\")\n    if c6.button(\"\ud83c\udfdb\ufe0f \u0d15\u0d41\u0d2e\u0d4d\u0d2e\u0d3e\u0d2f\u0d02 & \u0d38\u0d2c\u0d4d\u0d38\u0d3f\u0d21\u0d3f\", use_container_width=True):\n        set_query(\"\u0d2e\u0d23\u0d4d\u0d23\u0d3f\u0d28\u0d4d\u0d31\u0d46 \u0d05\u0d2e\u0d4d\u0d32\u0d24 \u0d15\u0d41\u0d31\u0d2f\u0d4d\u0d15\u0d4d\u0d15\u0d3e\u0d7b \u0d15\u0d41\u0d2e\u0d4d\u0d2e\u0d3e\u0d2f\u0d02 \u0d0e\u0d24\u0d4d\u0d30 \u0d1a\u0d47\u0d7c\u0d15\u0d4d\u0d15\u0d23\u0d02? \u0d38\u0d41\u0d2d\u0d3f\u0d15\u0d4d\u0d37 \u0d15\u0d47\u0d30\u0d33\u0d02 \u0d38\u0d2c\u0d4d\u0d38\u0d3f\u0d21\u0d3f \u0d0e\u0d19\u0d4d\u0d19\u0d28\u0d46 \u0d32\u0d2d\u0d3f\u0d15\u0d4d\u0d15\u0d41\u0d02?\")\n\n    with st.form(key=\"query_form\"):\n        query_input = st.text_area(\n            \"Type or paste your question in Malayalam or English:\",\n            value=st.session_state.user_query,\n            height=85,\n            placeholder=\"e.g. \u0d35\u0d3e\u0d34\u0d2f\u0d3f\u0d32\u0d46 \u0d2a\u0d41\u0d34\u0d41 / how to control coconut bud rot / \u0d15\u0d41\u0d2e\u0d4d\u0d2e\u0d3e\u0d2f\u0d02 \u0d2a\u0d4d\u0d30\u0d2f\u0d4b\u0d17\u0d02...\"\n        )\n        submit_btn = st.form_submit_button(\"\ud83d\udd0d Run RAG Advisory Search\", use_container_width=True)\n\n    with st.expander(\"\ud83c\udf99\ufe0f Or Upload Recorded Voice File (.wav)\"):\n        audio_upload = st.file_uploader(\"Upload Audio (.wav):\", type=[\"wav\"], key=\"audio_uploader\")\n        if audio_upload is not None and HAS_SR:\n            recognizer = sr.Recognizer()\n            with sr.AudioFile(audio_upload) as source:\n                audio_data = recognizer.record(source)\n                try:\n                    lang_code = \"ml-IN\" if \"Malayalam\" in language_mode else \"en-IN\"\n                    transcribed = recognizer.recognize_google(audio_data, language=lang_code)\n                    st.success(f\"Transcribed Voice: **{transcribed}**\")\n                    query_input = transcribed\n                    submit_btn = True\n                except Exception as err:\n                    st.warning(f\"Voice transcription notice: {err}\")\n\n    # Process query\n    if submit_btn or query_input:\n        active_query = query_input.strip()\n        if not active_query:\n            st.warning(\"Please type a question above.\")\n        else:\n            retrieved = engine.retrieve(active_query, top_k=2)\n            schemes = engine.match_schemes(selected_crops or [\"Paddy\"], land_ha, is_owner)\n            response_text = engine.generate_answer(\n                active_query,\n                retrieved,\n                schemes,\n                language=language_mode,\n                api_key=api_key\n            )\n\n            st.markdown(response_text)\n\n            # Text-to-Speech output\n            if HAS_GTTS and retrieved and retrieved[0].get(\"similarity_score\", 0.0) >= 0.18:\n                try:\n                    lang_code = \"ml\" if tts_lang.startswith(\"ml\") else \"en\"\n                    speech_text = retrieved[0][\"content_ml\"] if lang_code == \"ml\" else retrieved[0][\"content_en\"]\n                    tts = gTTS(text=speech_text, lang=lang_code)\n                    buf = io.BytesIO()\n                    tts.write_to_fp(buf)\n                    buf.seek(0)\n                    st.markdown(\"#### \ud83d\udd0a Step 6: Listen to Advisory (Text-to-Speech)\")\n                    st.audio(buf, format=\"audio/mp3\")\n                except Exception:\n                    pass\n\n            with st.expander(\"\ud83d\udd0e Retrieved Vector Knowledge Base Chunks (RAG Cosine Similarity)\", expanded=True):\n                for idx, doc in enumerate(retrieved, 1):\n                    score = doc.get(\"similarity_score\", 0.0)\n                    st.markdown(f\"**{idx}. [{doc['id']}] {doc['title_en']}** (Cosine Sim: `{score}`)\")\n                    st.caption(f\"Source: {doc['source_name']} - {doc['source_url']}\")\n                    st.write(doc[\"content_en\"])\n\nwith col2:\n    st.markdown(\"### \ud83c\udfdb\ufe0f Eligible Government Schemes (Step 5)\")\n    st.caption(f\"Profile: **{district}** | **{land_ha} Ha** | Crops: **{', '.join(selected_crops)}**\")\n    matched = engine.match_schemes(selected_crops or [\"Paddy\"], land_ha, is_owner)\n    if not matched:\n        st.info(\"No matching schemes found for the current crop/land filter.\")\n    else:\n        for s in matched:\n            with st.container(border=True):\n                st.markdown(f\"#### {s['name_en']}\")\n                st.markdown(f\"**{s['name_ml']}**\")\n                st.write(f\"**Benefit:** {s['benefit_en']}\")\n                st.caption(f\"**How to Apply:** {s['how_to_apply_en']} | [Official Portal]({s['source_url']})\")\n",
+      "rag_engine.py": "# RAG Engine and Scheme Eligibility Module\n# Project: AI Voice Assistant for Farmers\n# Team: Akash B L (TRV23CE010), Gopika L V (TRV23CE039), Karthika B Nair (TRV23CE042)\n\nimport json\nimport math\nimport os\nimport re\nfrom collections import Counter\n\ntry:\n    import chromadb\n    HAS_CHROMA = True\nexcept ImportError:\n    HAS_CHROMA = False\n\ntry:\n    from openai import OpenAI\n    HAS_OPENAI = True\nexcept ImportError:\n    HAS_OPENAI = False\n\n\nclass SimpleTFIDFVectorizer:\n    \"\"\"Bilingual unigram + bigram TF-IDF vectorizer and cosine similarity engine.\"\"\"\n\n    def __init__(self):\n        self.vocab = {}\n        self.idf = {}\n        self.doc_vectors = []\n\n    def _tokenize(self, text):\n        cleaned = re.sub(r\"[^\\w\\s\\u0D00-\\u0D7F]\", \" \", text.lower())\n        tokens = [t for t in cleaned.split() if len(t) > 1]\n        bigrams = [f\"{tokens[i]}_{tokens[i+1]}\" for i in range(len(tokens) - 1)]\n        return tokens + bigrams\n\n    def fit_transform(self, corpus):\n        tokenized_docs = [self._tokenize(doc) for doc in corpus]\n        n_docs = len(tokenized_docs)\n\n        df = Counter()\n        for tokens in tokenized_docs:\n            for term in set(tokens):\n                df[term] += 1\n\n        self.vocab = {term: idx for idx, term in enumerate(df.keys())}\n        self.idf = {\n            term: math.log((1.0 + n_docs) / (1.0 + count)) + 1.0\n            for term, count in df.items()\n        }\n\n        self.doc_vectors = [self._to_vector(tokens) for tokens in tokenized_docs]\n        return self.doc_vectors\n\n    def _to_vector(self, tokens):\n        tf = Counter(tokens)\n        vec = {}\n        norm_sq = 0.0\n        for term, count in tf.items():\n            if term in self.idf:\n                val = count * self.idf[term]\n                vec[term] = val\n                norm_sq += val * val\n        norm = math.sqrt(norm_sq) if norm_sq > 0 else 1.0\n        return {term: val / norm for term, val in vec.items()}\n\n    def cosine_scores(self, query):\n        q_tokens = self._tokenize(query)\n        q_vec = self._to_vector(q_tokens)\n        if not q_vec:\n            return [0.0] * len(self.doc_vectors)\n        scores = []\n        for d_vec in self.doc_vectors:\n            dot = sum(val * d_vec.get(term, 0.0) for term, val in q_vec.items())\n            scores.append(dot)\n        return scores\n\n\nclass KeralaAgriRAGEngine:\n    def __init__(self, kb_path=\"knowledge_base.json\"):\n        self.kb_path = kb_path\n        with open(self.kb_path, \"r\", encoding=\"utf-8\") as f:\n            data = json.load(f)\n\n        self.documents = data.get(\"crop_advisories\", [])\n        self.schemes = data.get(\"government_schemes\", [])\n        self.collection = None\n        self.vectorizer = SimpleTFIDFVectorizer()\n\n        self.init_vector_db()\n\n    def init_vector_db(self):\n        corpus = []\n        for doc in self.documents:\n            text = (\n                doc[\"crop\"] + \" \" + doc[\"category\"] + \" \"\n                + doc[\"title_en\"] + \" \" + doc[\"title_ml\"] + \" \"\n                + \" \".join(doc.get(\"keywords\", [])) + \" \"\n                + doc[\"content_en\"] + \" \" + doc[\"content_ml\"]\n            )\n            corpus.append(text)\n\n        if HAS_CHROMA:\n            try:\n                client = chromadb.Client()\n                self.collection = client.get_or_create_collection(name=\"kau_agri_docs\")\n                if self.collection.count() == 0:\n                    self.collection.add(\n                        ids=[d[\"id\"] for d in self.documents],\n                        documents=corpus,\n                        metadatas=[\n                            {\n                                \"id\": d[\"id\"],\n                                \"crop\": d[\"crop\"],\n                                \"title_en\": d[\"title_en\"],\n                                \"source_url\": d[\"source_url\"]\n                            }\n                            for d in self.documents\n                        ]\n                    )\n            except Exception:\n                self.collection = None\n\n        if len(corpus) > 0:\n            self.vectorizer.fit_transform(corpus)\n\n    def retrieve(self, query, top_k=2):\n        q_clean = query.lower().strip()\n        results = []\n\n        sim_scores = self.vectorizer.cosine_scores(q_clean)\n\n        for i, doc in enumerate(self.documents):\n            kw_matches = 0\n            for kw in doc.get(\"keywords\", []):\n                if kw.lower() in q_clean:\n                    kw_matches += 1\n\n            # Match crop names or Malayalam equivalents\n            crop_tokens = re.sub(r\"[^\\w\\s\\u0D00-\\u0D7F]\", \" \", doc[\"crop\"].lower()).split()\n            crop_boost = 0.0\n            for ct in crop_tokens:\n                if len(ct) > 2 and ct in q_clean:\n                    crop_boost += 0.40\n\n            score = (kw_matches * 0.30) + (sim_scores[i] * 0.70) + crop_boost\n            item = dict(doc)\n            item[\"similarity_score\"] = round(min(0.99, max(0.0, score)), 2)\n            results.append((score, item))\n\n        results.sort(key=lambda x: x[0], reverse=True)\n        return [r[1] for r in results[:top_k]]\n\n    def match_schemes(self, crops, land_ha, is_owner=True):\n        eligible = []\n        for s in self.schemes:\n            scheme_crops = [c.lower() for c in s.get(\"crops\", [])]\n            # Match if crops overlap or general scheme\n            has_crop = any(c.lower() in scheme_crops for c in crops) or any(\"general\" in sc for sc in scheme_crops)\n            land_valid = s[\"min_land_ha\"] <= land_ha <= s[\"max_land_ha\"]\n            owner_valid = True if not s[\"requires_ownership\"] else is_owner\n\n            if has_crop and land_valid and owner_valid:\n                eligible.append(s)\n        return eligible\n\n    def generate_answer(self, query, retrieved_docs, matched_schemes, language=\"Bilingual\", api_key=\"\"):\n        top_doc = retrieved_docs[0]\n        top_score = top_doc.get(\"similarity_score\", 0.0)\n\n        # Fallback if query has no relevance to the agricultural knowledge base\n        if top_score < 0.18:\n            output = []\n            output.append(\"### \ud83c\udf3e \u0d15\u0d3e\u0d7c\u0d37\u0d3f\u0d15 \u0d09\u0d2a\u0d26\u0d47\u0d36\u0d02 (KAU RAG):\")\n            output.append(\n                \"\u0d28\u0d3f\u0d19\u0d4d\u0d19\u0d7e \u0d1a\u0d4b\u0d26\u0d3f\u0d1a\u0d4d\u0d1a \u0d35\u0d3f\u0d37\u0d2f\u0d24\u0d4d\u0d24\u0d3f\u0d7d \u0d15\u0d43\u0d24\u0d4d\u0d2f\u0d2e\u0d3e\u0d2f \u0d35\u0d3f\u0d35\u0d30\u0d19\u0d4d\u0d19\u0d7e \u0d28\u0d3f\u0d32\u0d35\u0d3f\u0d32\u0d46 \u0d21\u0d3e\u0d31\u0d4d\u0d31\u0d3e\u0d2c\u0d47\u0d38\u0d3f\u0d7d \u0d32\u0d2d\u0d4d\u0d2f\u0d2e\u0d32\u0d4d\u0d32. \"\n                \"\u0d15\u0d47\u0d30\u0d33 \u0d15\u0d3e\u0d7c\u0d37\u0d3f\u0d15 \u0d38\u0d7c\u0d35\u0d15\u0d32\u0d3e\u0d36\u0d3e\u0d32\u0d2f\u0d41\u0d1f\u0d46 (KAU) \u0d2e\u0d3e\u0d7c\u0d17\u0d4d\u0d17\u0d30\u0d47\u0d16\u0d2f\u0d3f\u0d7d \u0d09\u0d7e\u0d2a\u0d4d\u0d2a\u0d46\u0d1f\u0d41\u0d24\u0d4d\u0d24\u0d3f\u0d2f\u0d3f\u0d1f\u0d4d\u0d1f\u0d41\u0d33\u0d4d\u0d33 \u0d24\u0d3e\u0d34\u0d46 \u0d2a\u0d31\u0d2f\u0d41\u0d28\u0d4d\u0d28 \u0d35\u0d3f\u0d37\u0d2f\u0d19\u0d4d\u0d19\u0d33\u0d46\u0d15\u0d4d\u0d15\u0d41\u0d31\u0d3f\u0d1a\u0d4d\u0d1a\u0d4d \u0d1a\u0d4b\u0d26\u0d3f\u0d15\u0d4d\u0d15\u0d41\u0d15:\\n\"\n                \"- **\u0d28\u0d46\u0d32\u0d4d\u0d32\u0d4d (Paddy):** \u0d35\u0d3f\u0d30\u0d3f\u0d2a\u0d4d\u0d2a\u0d4d/\u0d2e\u0d41\u0d23\u0d4d\u0d1f\u0d15\u0d7b/\u0d2a\u0d41\u0d1e\u0d4d\u0d1a \u0d35\u0d3f\u0d24\u0d4d\u0d24\u0d3f\u0d28\u0d19\u0d4d\u0d19\u0d7e (\u0d09\u0d2e, \u0d1c\u0d4d\u0d2f\u0d4b\u0d24\u0d3f), \u0d2e\u0d41\u0d1e\u0d4d\u0d1e (BPH), \u0d24\u0d23\u0d4d\u0d1f\u0d41\u0d24\u0d41\u0d30\u0d2a\u0d4d\u0d2a\u0d7b, \u0d2c\u0d4d\u0d32\u0d3e\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d4d.\\n\"\n                \"- **\u0d24\u0d46\u0d19\u0d4d\u0d19\u0d4d (Coconut):** \u0d1a\u0d46\u0d2e\u0d4d\u0d2a\u0d7b \u0d1a\u0d46\u0d32\u0d4d\u0d32\u0d3f, \u0d15\u0d4a\u0d2e\u0d4d\u0d2a\u0d7b \u0d1a\u0d46\u0d32\u0d4d\u0d32\u0d3f, \u0d15\u0d42\u0d2e\u0d4d\u0d2a\u0d41\u0d1a\u0d40\u0d2f\u0d7d (\u0d2e\u0d39\u0d3e\u0d33\u0d3f), \u0d35\u0d33\u0d2a\u0d4d\u0d30\u0d2f\u0d4b\u0d17\u0d02.\\n\"\n                \"- **\u0d15\u0d41\u0d30\u0d41\u0d2e\u0d41\u0d33\u0d15\u0d4d (Pepper):** \u0d26\u0d4d\u0d30\u0d41\u0d24\u0d35\u0d3e\u0d1f\u0d4d\u0d1f\u0d02 (Quick Wilt), \u0d1f\u0d4d\u0d30\u0d48\u0d15\u0d4d\u0d15\u0d4b\u0d21\u0d46\u0d7c\u0d2e, \u0d2c\u0d4b\u0d7c\u0d21\u0d4b \u0d2e\u0d3f\u0d36\u0d4d\u0d30\u0d3f\u0d24\u0d02.\\n\"\n                \"- **\u0d35\u0d3e\u0d34 (Banana):** \u0d2a\u0d3f\u0d23\u0d4d\u0d1f\u0d3f\u0d2a\u0d4d\u0d2a\u0d41\u0d34\u0d41 (Pseudostem weevil), \u0d38\u0d3f\u0d17\u0d3e\u0d1f\u0d4d\u0d1f\u0d4b\u0d15\u0d4d\u0d15 \u0d07\u0d32\u0d2a\u0d4d\u0d2a\u0d41\u0d33\u0d4d\u0d33\u0d3f.\\n\"\n                \"- **\u0d2a\u0d1a\u0d4d\u0d1a\u0d15\u0d4d\u0d15\u0d31\u0d3f & \u0d15\u0d2a\u0d4d\u0d2a (Vegetables & Tapioca):** \u0d15\u0d3e\u0d2f\u0d40\u0d1a\u0d4d\u0d1a, \u0d2e\u0d4a\u0d38\u0d48\u0d15\u0d4d \u0d30\u0d4b\u0d17\u0d02.\\n\"\n                \"- **\u0d2e\u0d23\u0d4d\u0d23\u0d4d \u0d2a\u0d30\u0d3f\u0d36\u0d4b\u0d27\u0d28 & \u0d2a\u0d26\u0d4d\u0d27\u0d24\u0d3f\u0d15\u0d7e:** \u0d15\u0d41\u0d2e\u0d4d\u0d2e\u0d3e\u0d2f\u0d02 \u0d2a\u0d4d\u0d30\u0d2f\u0d4b\u0d17\u0d02, \u0d38\u0d41\u0d2d\u0d3f\u0d15\u0d4d\u0d37 \u0d15\u0d47\u0d30\u0d33\u0d02, \u0d2a\u0d3f\u0d0e\u0d02 \u0d15\u0d3f\u0d38\u0d3e\u0d7b, \u0d35\u0d3f\u0d33 \u0d07\u0d7b\u0d37\u0d41\u0d31\u0d7b\u0d38\u0d4d.\"\n            )\n            output.append(\"---\")\n            output.append(\"### \ud83c\udf31 Advisory Notice:\")\n            output.append(\n                f\"No close match found in the KAU knowledge base for: *'{query}'*.\\n\"\n                \"Please query about Kerala crops (Paddy, Coconut, Pepper, Banana, Vegetables, Tapioca, Soil Acidity) or Government Schemes.\"\n            )\n            return \"\\n\\n\".join(output)\n\n        context_list = []\n        for d in retrieved_docs:\n            context_list.append(\n                f\"Document ID: {d['id']} ({d['source_name']})\\n\"\n                f\"English: {d['content_en']}\\n\"\n                f\"Malayalam: {d['content_ml']}\"\n            )\n        context_text = \"\\n\\n\".join(context_list)\n\n        if api_key and HAS_OPENAI:\n            try:\n                client = OpenAI(api_key=api_key.strip())\n                sys_msg = (\n                    \"You are a bilingual agricultural assistant for Kerala farmers. \"\n                    \"Answer strictly using the retrieved KAU context below.\"\n                )\n                user_msg = f\"Question: {query}\\nLanguage: {language}\\n\\nContext:\\n{context_text}\"\n                resp = client.chat.completions.create(\n                    model=\"gpt-4o-mini\",\n                    messages=[\n                        {\"role\": \"system\", \"content\": sys_msg},\n                        {\"role\": \"user\", \"content\": user_msg}\n                    ],\n                    temperature=0.2\n                )\n                return resp.choices[0].message.content\n            except Exception:\n                pass\n\n        output = []\n\n        if \"Malayalam\" in language or \"Bilingual\" in language:\n            output.append(f\"### \u0d15\u0d3e\u0d7c\u0d37\u0d3f\u0d15 \u0d36\u0d41\u0d2a\u0d3e\u0d7c\u0d36 (KAU): {top_doc['title_ml']}\")\n            output.append(top_doc[\"content_ml\"])\n            if matched_schemes:\n                output.append(\"**\u0d05\u0d7c\u0d39\u0d24\u0d2f\u0d41\u0d33\u0d4d\u0d33 \u0d38\u0d7c\u0d15\u0d4d\u0d15\u0d3e\u0d7c \u0d2a\u0d26\u0d4d\u0d27\u0d24\u0d3f\u0d15\u0d7e (Eligible Schemes):**\")\n                for s in matched_schemes[:2]:\n                    output.append(f\"- **{s['name_ml']}**: {s['benefit_ml']} ([Portal]({s['source_url']}))\")\n\n        if \"English\" in language or \"Bilingual\" in language:\n            output.append(f\"### KAU Advisory: {top_doc['title_en']}\")\n            output.append(top_doc[\"content_en\"])\n            if matched_schemes:\n                output.append(\"**Eligible Government Schemes:**\")\n                for s in matched_schemes[:2]:\n                    output.append(f\"- **{s['name_en']}**: {s['benefit_en']} ([Portal]({s['source_url']}))\")\n\n        output.append(f\"**Reference:** [{top_doc['source_name']}]({top_doc['source_url']})\")\n        return \"\\n\\n\".join(output)\n",
+      "requirements.txt": "streamlit\ngTTS\nSpeechRecognition\nopenai\n"
+    };
+
+    let kbState = JSON.parse(JSON.stringify(INITIAL_KB));
+    let autoSpeak = true;
+    let externalApiKey = "";
+    let currentRetrievedDocs = [kbState.crop_advisories[1], kbState.crop_advisories[0]];
+    let currentMatchedSchemes = [];
+    let isRecording = false;
+    let recognitionInstance = null;
+
+    function safeGetStorage(key) {
+      try { return localStorage.getItem(key) || ""; } catch (e) { return ""; }
+    }
+    function safeSetStorage(key, val) {
+      try { localStorage.setItem(key, val); } catch (e) {}
+    }
+
+    function showToast(msg) {
+      const banner = document.getElementById("toastBanner");
+      const text = document.getElementById("toastText");
+      text.textContent = msg;
+      banner.classList.remove("hidden");
+      setTimeout(() => { banner.classList.add("hidden"); }, 3200);
+    }
+
+    function switchTab(tabId) {
+      const tabs = ["assistant", "schemes", "kb", "guide"];
+      tabs.forEach(t => {
+        const sec = document.getElementById("tab-" + t);
+        if (sec) sec.classList.toggle("hidden", t !== tabId);
+      });
+      document.querySelectorAll(".nav-tab").forEach(btn => {
+        const active = btn.getAttribute("data-tab") === tabId;
+        btn.className = active
+          ? "nav-tab px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-amber-400 text-amber-300 whitespace-nowrap flex items-center gap-1.5"
+          : "nav-tab px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-emerald-200 hover:text-white whitespace-nowrap flex items-center gap-1.5";
+      });
+    }
+
+    function getFarmerProfile() {
+      const district = document.getElementById("profileDistrict").value;
+      const landHa = parseFloat(document.getElementById("profileLand").value) || 0.8;
+      const isOwner = document.getElementById("profileOwner").checked;
+      const crops = [];
+      document.querySelectorAll(".crop-cb:checked").forEach(cb => crops.push(cb.value));
+      return { district, landHa, isOwner, crops: crops.length ? crops : ["Paddy"] };
+    }
+
+    function computeSchemeMatches() {
+      const profile = getFarmerProfile();
+      const acres = (profile.landHa * 2.471).toFixed(1);
+      document.getElementById("landValueDisplay").textContent = `${profile.landHa.toFixed(1)} Ha (${acres} Acres)`;
+
+      const matched = [];
+      const allEvaluated = kbState.government_schemes.map(s => {
+        const cropOverlap = s.crops.some(sc => profile.crops.some(pc => pc.toLowerCase() === sc.toLowerCase()));
+        const landOk = profile.landHa >= s.min_land_ha && profile.landHa <= s.max_land_ha;
+        const ownerOk = !s.requires_ownership || profile.isOwner;
+        const eligible = cropOverlap && landOk && ownerOk;
+        let reason = "Meets crop, landholding, and ownership criteria";
+        if (!cropOverlap) reason = `Requires crop: ${s.crops.join(", ")}`;
+        else if (!landOk) reason = `Requires land between ${s.min_land_ha} and ${s.max_land_ha} Ha`;
+        else if (!ownerOk) reason = "Requires land ownership (Patta/Tax receipt)";
+        if (eligible) matched.push(s);
+        return { ...s, eligible, reason };
+      });
+
+      currentMatchedSchemes = matched;
+      document.getElementById("matchedCountMini").textContent = `${matched.length} of ${allEvaluated.length} Schemes Matched`;
+      document.getElementById("schemeTabSummaryBadge").textContent = `${matched.length} Eligible Schemes for ${profile.district} (${profile.landHa.toFixed(1)} Ha)`;
+
+      const inlineContainer = document.getElementById("inlineMatchedSchemes");
+      inlineContainer.innerHTML = matched.map(s => `
+        <div class="bg-white p-3 rounded-lg border border-amber-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="font-bold text-emerald-950">${s.name_en}</div>
+            <div class="text-emerald-800 font-medium ml-text mt-0.5">${s.name_ml}</div>
+            <p class="text-slate-600 mt-1 text-[11px]">${s.benefit_en}</p>
+          </div>
+          <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+            <span class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">Eligible</span>
+            <a href="${s.source_url}" target="_blank" rel="noopener noreferrer" class="text-[11px] font-bold text-amber-800 hover:underline">Official Portal ↗</a>
+          </div>
+        </div>
+      `).join("");
+
+      const fullGrid = document.getElementById("schemesFullGrid");
+      fullGrid.innerHTML = allEvaluated.map(s => `
+        <div class="p-4 rounded-xl border ${s.eligible ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-slate-50 opacity-75'} flex flex-col justify-between space-y-3">
+          <div class="space-y-1.5">
+            <div class="flex items-start justify-between gap-2">
+              <h3 class="text-sm font-bold text-emerald-950">${s.name_en}</h3>
+              <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full shrink-0 ${s.eligible ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'}">
+                ${s.eligible ? 'Eligible' : 'Not Matched'}
+              </span>
+            </div>
+            <div class="text-xs font-semibold text-emerald-800 ml-text">${s.name_ml}</div>
+            <div class="text-[11px] text-slate-500">${s.authority}</div>
+            <p class="text-xs text-slate-700 pt-1"><strong>Benefit (EN):</strong> ${s.benefit_en}</p>
+            <p class="text-xs text-slate-700 ml-text"><strong>ആനുകൂല്യം (ML):</strong> ${s.benefit_ml}</p>
+          </div>
+          <div class="pt-2 border-t border-slate-200/80 text-xs space-y-1">
+            <div class="text-[11px] text-slate-600"><strong>Rule Check:</strong> ${s.reason}</div>
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-[11px] text-slate-600">${s.how_to_apply_en}</span>
+              <a href="${s.source_url}" target="_blank" rel="noopener noreferrer" class="text-xs font-bold text-emerald-800 underline hover:text-emerald-600 shrink-0 ml-2">
+                Open Portal ↗
+              </a>
+            </div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function retrieveTopChunks(queryText) {
+      const q = (queryText || "").toLowerCase().trim();
+      const tokens = q.split(/[\s,?.!]+/).filter(Boolean);
+
+      const scored = kbState.crop_advisories.map(doc => {
+        let score = 0.15;
+        const fullText = `${doc.crop} ${doc.category} ${doc.title_en} ${doc.title_ml} ${doc.content_en} ${doc.content_ml}`.toLowerCase();
+
+        (doc.keywords || []).forEach(kw => {
+          if (q.includes(kw.toLowerCase())) score += 0.28;
+        });
+
+        tokens.forEach(tok => {
+          if (tok.length > 2 && fullText.includes(tok)) score += 0.09;
+        });
+
+        const sim = Math.min(0.98, Math.max(0.21, score));
+        return { ...doc, similarity_score: sim.toFixed(2) };
+      });
+
+      scored.sort((a, b) => parseFloat(b.similarity_score) - parseFloat(a.similarity_score));
+      return scored.slice(0, 2);
+    }
+
+    function animatePipeline(activeStep, statusText) {
+      const badge = document.getElementById("pipelineStatusBadge");
+      if (statusText) badge.textContent = statusText;
+      for (let i = 1; i <= 6; i++) {
+        const card = document.getElementById("step-card-" + i);
+        if (!card) continue;
+        card.classList.remove("step-active", "step-done");
+        if (i < activeStep) card.classList.add("step-done");
+        else if (i === activeStep) card.classList.add("step-active");
+      }
+    }
+
+    async function runRAGPipeline(queryText, triggeredByVoice = false) {
+      const q = (queryText || "").trim();
+      if (!q) {
+        showToast("Please enter or select a farming query first.");
+        return;
+      }
+
+      animatePipeline(1, "Step 1: Query Captured");
+      await new Promise(r => setTimeout(r, 150));
+
+      animatePipeline(2, triggeredByVoice ? "Step 2: Speech-to-Text Completed" : "Step 2: Text Tokenized");
+      await new Promise(r => setTimeout(r, 150));
+
+      animatePipeline(3, "Step 3: Computing Vector Cosine Similarity...");
+      const topDocs = retrieveTopChunks(q);
+      currentRetrievedDocs = topDocs;
+      await new Promise(r => setTimeout(r, 200));
+
+      animatePipeline(4, "Step 4: Synthesizing Grounded KAU Response...");
+      const primary = topDocs[0];
+      const langPref = document.getElementById("voiceLangSelect").value;
+
+      document.getElementById("advisoryCropBadge").textContent = `${primary.crop} • ${primary.category} (Cosine Sim: ${primary.similarity_score})`;
+      document.getElementById("advisoryTitle").textContent = `${primary.title_ml} | ${primary.title_en}`;
+
+      const mlBlock = `
+        <div class="p-4 rounded-xl bg-emerald-50/80 border border-emerald-200 space-y-1.5">
+          <div class="text-xs font-bold text-emerald-900 flex items-center justify-between">
+            <span>മലയാളം കാർഷിക ഉപദേശം (Malayalam Advisory)</span>
+            <span class="text-[11px] font-normal text-emerald-700">Doc ID: ${primary.id}</span>
+          </div>
+          <p class="text-slate-800 ml-text text-sm leading-relaxed">${primary.content_ml}</p>
+        </div>
+      `;
+
+      const enBlock = `
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+          <div class="text-xs font-bold text-slate-800 flex items-center justify-between">
+            <span>English Advisory (KAU Package of Practices)</span>
+            <a href="${primary.source_url}" target="_blank" rel="noopener noreferrer" class="text-emerald-700 underline text-[11px]">Reference Source ↗</a>
+          </div>
+          <p class="text-slate-700 text-sm leading-relaxed">${primary.content_en}</p>
+        </div>
+      `;
+
+      const contentArea = document.getElementById("advisoryContentArea");
+      if (langPref === "ml-IN") {
+        contentArea.innerHTML = mlBlock + enBlock;
+      } else if (langPref === "en-IN") {
+        contentArea.innerHTML = enBlock + mlBlock;
+      } else {
+        contentArea.innerHTML = mlBlock + enBlock;
+      }
+
+      const chunksEl = document.getElementById("retrievedChunksList");
+      chunksEl.innerHTML = topDocs.map((d, idx) => `
+        <div class="bg-white p-2.5 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <span class="font-bold text-emerald-900">#${idx + 1} [${d.id}] ${d.title_en}</span>
+            <div class="text-[11px] text-slate-500">Source: <a href="${d.source_url}" target="_blank" rel="noopener noreferrer" class="underline text-emerald-700">${d.source_name}</a></div>
+          </div>
+          <span class="text-xs font-mono font-bold bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-md shrink-0">
+            Sim: ${d.similarity_score}
+          </span>
+        </div>
+      `).join("");
+
+      animatePipeline(5, "Step 5: Evaluating Scheme Eligibility");
+      computeSchemeMatches();
+      await new Promise(r => setTimeout(r, 150));
+
+      animatePipeline(6, "Step 6: Pipeline Complete");
+      if (autoSpeak) {
+        speakAdvisory(langPref === "en-IN" ? "en-IN" : "ml-IN");
+      }
+    }
+
+    function speakAdvisory(langCode) {
+      if (!("speechSynthesis" in window)) {
+        showToast("Speech synthesis is not supported in this browser.");
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const primary = currentRetrievedDocs[0] || kbState.crop_advisories[0];
+      const textToRead = langCode.startsWith("ml") ? primary.content_ml : primary.content_en;
+      const utterance = new SpeechSynthesisUtterance(textToRead);
+      utterance.lang = langCode;
+      utterance.rate = 0.95;
+
+      const voices = window.speechSynthesis.getVoices();
+      const matchVoice = voices.find(v => v.lang && v.lang.toLowerCase().includes(langCode.split("-")[0].toLowerCase()));
+      if (matchVoice) utterance.voice = matchVoice;
+
+      window.speechSynthesis.speak(utterance);
+      showToast(langCode.startsWith("ml") ? "Playing Malayalam TTS audio..." : "Playing English TTS audio...");
+    }
+
+    function toggleMicrophone() {
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const micBtn = document.getElementById("micRecordBtn");
+      const titleEl = document.getElementById("micStatusTitle");
+      const subEl = document.getElementById("micStatusSub");
+
+      if (!SpeechRec) {
+        showToast("SpeechRecognition API unavailable; running sample voice query.");
+        const fallbackQ = "നെല്ലിലെ മുഞ്ഞ എങ്ങനെ നിയന്ത്രിക്കാം? ഏത് വിത്താണ് നല്ലത്?";
+        document.getElementById("farmerQueryInput").value = fallbackQ;
+        runRAGPipeline(fallbackQ, true);
+        return;
+      }
+
+      if (isRecording && recognitionInstance) {
+        recognitionInstance.stop();
+        return;
+      }
+
+      try {
+        recognitionInstance = new SpeechRec();
+        const selectedMode = document.getElementById("voiceLangSelect").value;
+        recognitionInstance.lang = selectedMode === "en-IN" ? "en-IN" : "ml-IN";
+        recognitionInstance.interimResults = false;
+        recognitionInstance.maxAlternatives = 1;
+
+        recognitionInstance.onstart = () => {
+          isRecording = true;
+          micBtn.classList.add("pulse-ring", "bg-red-600");
+          micBtn.classList.remove("bg-emerald-700");
+          titleEl.textContent = `Listening (${recognitionInstance.lang})...`;
+          subEl.textContent = "Speak your agricultural query into the microphone";
+          animatePipeline(1, "Step 1: Capturing Audio Stream...");
+        };
+
+        recognitionInstance.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          document.getElementById("farmerQueryInput").value = transcript;
+          titleEl.textContent = "Speech-to-Text Complete";
+          subEl.textContent = `Transcript: "${transcript}"`;
+          runRAGPipeline(transcript, true);
+        };
+
+        recognitionInstance.onerror = () => {
+          isRecording = false;
+          micBtn.classList.remove("pulse-ring", "bg-red-600");
+          micBtn.classList.add("bg-emerald-700");
+          titleEl.textContent = "Audio Stream Fallback — Loaded Test Query";
+          const sampleVoice = "തെങ്ങിലെ ചെമ്പൻ ചെല്ലി, കൊമ്പൻ ചെല്ലി എന്നിവയെ എങ്ങനെ നിയന്ത്രിക്കാം?";
+          document.getElementById("farmerQueryInput").value = sampleVoice;
+          runRAGPipeline(sampleVoice, true);
+        };
+
+        recognitionInstance.onend = () => {
+          isRecording = false;
+          micBtn.classList.remove("pulse-ring", "bg-red-600");
+          micBtn.classList.add("bg-emerald-700");
+        };
+
+        recognitionInstance.start();
+      } catch (e) {
+        showToast("Loaded sample query.");
+      }
+    }
+
+    function renderKnowledgeBase(filterText = "") {
+      const f = filterText.toLowerCase().trim();
+      const container = document.getElementById("kbChunksContainer");
+      const filtered = kbState.crop_advisories.filter(doc => {
+        if (!f) return true;
+        const blob = `${doc.id} ${doc.crop} ${doc.title_en} ${doc.title_ml} ${doc.content_en} ${doc.content_ml}`.toLowerCase();
+        return blob.includes(f);
+      });
+
+      container.innerHTML = filtered.map(doc => `
+        <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="text-xs font-bold bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-full">
+              ${doc.id} • ${doc.crop}
+            </span>
+            <a href="${doc.source_url}" target="_blank" rel="noopener noreferrer" class="text-xs font-semibold text-emerald-800 underline">
+              ${doc.source_name} ↗
+            </a>
+          </div>
+          <h4 class="text-sm font-bold text-emerald-950">${doc.title_en}</h4>
+          <div class="text-xs font-semibold text-emerald-800 ml-text">${doc.title_ml}</div>
+          <p class="text-xs text-slate-700 leading-relaxed">${doc.content_en}</p>
+          <p class="text-xs text-slate-800 leading-relaxed ml-text bg-white p-2.5 rounded-lg border border-slate-200">${doc.content_ml}</p>
+        </div>
+      `).join("");
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      externalApiKey = safeGetStorage("kau_rag_llm_key");
+      if (externalApiKey) {
+        document.getElementById("apiStatusLabel").textContent = "Engine: External LLM + KAU RAG";
+        document.getElementById("llmApiKeyInput").value = externalApiKey;
+      }
+
+      document.querySelectorAll(".nav-tab").forEach(btn => {
+        btn.addEventListener("click", () => switchTab(btn.getAttribute("data-tab")));
+      });
+
+      document.getElementById("profileDistrict").addEventListener("change", computeSchemeMatches);
+      document.getElementById("profileLand").addEventListener("input", computeSchemeMatches);
+      document.getElementById("profileOwner").addEventListener("change", computeSchemeMatches);
+      document.querySelectorAll(".crop-cb").forEach(cb => cb.addEventListener("change", computeSchemeMatches));
+
+      document.getElementById("micRecordBtn").addEventListener("click", toggleMicrophone);
+      document.getElementById("autoSpeakToggleBtn").addEventListener("click", (e) => {
+        autoSpeak = !autoSpeak;
+        e.currentTarget.textContent = autoSpeak ? "Auto-TTS: ON" : "Auto-TTS: OFF";
+      });
+      document.getElementById("askAdvisoryBtn").addEventListener("click", () => {
+        runRAGPipeline(document.getElementById("farmerQueryInput").value, false);
+      });
+      document.getElementById("clearQueryBtn").addEventListener("click", () => {
+        document.getElementById("farmerQueryInput").value = "";
+      });
+
+      document.querySelectorAll(".sample-q-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const q = btn.getAttribute("data-sample");
+          document.getElementById("farmerQueryInput").value = q;
+          runRAGPipeline(q, false);
+        });
+      });
+
+      document.getElementById("speakMalayalamBtn").addEventListener("click", () => speakAdvisory("ml-IN"));
+      document.getElementById("speakEnglishBtn").addEventListener("click", () => speakAdvisory("en-IN"));
+      document.getElementById("stopSpeechBtn").addEventListener("click", () => {
+        if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+        showToast("Audio playback stopped.");
+      });
+      document.getElementById("copyAdvisoryBtn").addEventListener("click", () => {
+        const primary = currentRetrievedDocs[0] || kbState.crop_advisories[0];
+        const text = `${primary.title_ml}\n${primary.content_ml}\n\n${primary.title_en}\n${primary.content_en}`;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(() => showToast("Advisory copied to clipboard."));
+        }
+      });
+      document.getElementById("jumpToSchemesBtn").addEventListener("click", () => switchTab("schemes"));
+
+      document.getElementById("kbSearchInput").addEventListener("input", (e) => renderKnowledgeBase(e.target.value));
+      document.getElementById("addChunkBtn").addEventListener("click", () => {
+        const crop = document.getElementById("newChunkCrop").value.trim() || "Banana (വാഴ)";
+        const titleEn = document.getElementById("newChunkTitleEn").value.trim();
+        const titleMl = document.getElementById("newChunkTitleMl").value.trim() || titleEn;
+        const kwRaw = document.getElementById("newChunkKeywords").value.trim();
+        const contentEn = document.getElementById("newChunkContentEn").value.trim();
+        const contentMl = document.getElementById("newChunkContentMl").value.trim() || contentEn;
+
+        if (!titleEn || !contentEn) {
+          showToast("Please fill in the English Title and Advisory Text.");
+          return;
+        }
+
+        const newDoc = {
+          id: "KAU-DOC-0" + (kbState.crop_advisories.length + 1),
+          crop,
+          category: "Krishi Bhavan Advisory",
+          title_en: titleEn,
+          title_ml: titleMl,
+          keywords: kwRaw ? kwRaw.split(",").map(s => s.trim()) : [crop.toLowerCase()],
+          content_en: contentEn,
+          content_ml: contentMl,
+          source_name: "Kerala Krishi Bhavan / KAU Advisory",
+          source_url: "https://kau.in/sites/default/files/documents/pop2016.pdf"
+        };
+        kbState.crop_advisories.unshift(newDoc);
+        renderKnowledgeBase("");
+        showToast("Document chunk indexed into vector store.");
+      });
+
+      const codeBlock = document.getElementById("codeDisplayBlock");
+      codeBlock.textContent = CODE_FILES["app.py"];
+      document.querySelectorAll(".code-tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const fname = btn.getAttribute("data-codefile");
+          codeBlock.textContent = CODE_FILES[fname] || "";
+          document.querySelectorAll(".code-tab-btn").forEach(b => {
+            const isSel = b.getAttribute("data-codefile") === fname;
+            b.className = isSel
+              ? "code-tab-btn text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-800 text-white"
+              : "code-tab-btn text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200";
+          });
+        });
+      });
+      document.getElementById("copyCodeBtn").addEventListener("click", () => {
+        const text = codeBlock.textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(() => showToast("Module code copied."));
+        }
+      });
+
+      const apiModal = document.getElementById("apiModal");
+      document.getElementById("openApiModalBtn").addEventListener("click", () => apiModal.classList.remove("hidden"));
+      document.getElementById("closeApiModalBtn").addEventListener("click", () => apiModal.classList.add("hidden"));
+      document.getElementById("saveApiKeyBtn").addEventListener("click", () => {
+        externalApiKey = document.getElementById("llmApiKeyInput").value.trim();
+        safeSetStorage("kau_rag_llm_key", externalApiKey);
+        document.getElementById("apiStatusLabel").textContent = externalApiKey ? "Engine: External LLM + KAU RAG" : "Engine: Local KAU Vector RAG";
+        apiModal.classList.add("hidden");
+        showToast("Configuration updated.");
+      });
+      document.getElementById("clearApiKeyBtn").addEventListener("click", () => {
+        externalApiKey = "";
+        document.getElementById("llmApiKeyInput").value = "";
+        safeSetStorage("kau_rag_llm_key", "");
+        document.getElementById("apiStatusLabel").textContent = "Engine: Local KAU Vector RAG";
+        apiModal.classList.add("hidden");
+        showToast("Using Local KAU Vector RAG Engine.");
+      });
+
+      computeSchemeMatches();
+      renderKnowledgeBase("");
+      const initialQ = "നെല്ലിലെ മുഞ്ഞ (Brown Planthopper), തണ്ടുതുരപ്പൻ എന്നിവ എങ്ങനെ നിയന്ത്രിക്കാം? ഏത് വിത്താണ് നല്ലത്?";
+      document.getElementById("farmerQueryInput").value = initialQ;
+      autoSpeak = false;
+      runRAGPipeline(initialQ, false).then(() => { autoSpeak = true; });
+    });
+  </script>
+</body>
+</html>
